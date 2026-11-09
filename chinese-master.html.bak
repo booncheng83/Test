@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>华文达人 Chinese Master</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
+            background: #0a1628;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* Sky / space background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: 
+                radial-gradient(ellipse at 50% 100%, #0d2137 0%, transparent 60%),
+                linear-gradient(180deg, #0a1628 0%, #1a3a5c 60%, #2a4a6c 100%);
+            z-index: -2;
+        }
+
+        /* Stars */
+        .stars {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1;
+            overflow: hidden;
+        }
+        .star {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            animation: twinkle 3s infinite alternate;
+        }
+        @keyframes twinkle {
+            from { opacity: 0.2; } to { opacity: 1; }
+        }
+
+        .game-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 10px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 8px;
+            background: rgba(0,20,50,0.7);
+            padding: 10px 30px;
+            border-radius: 15px;
+            border: 1px solid rgba(100,200,255,0.2);
+            backdrop-filter: blur(5px);
+        }
+
+        .title {
+            font-size: 48px;
+            color: #FFD700;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5), 0 0 20px rgba(255,215,0,0.3);
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .level-indicator {
+            font-size: 20px;
+            color: #00e5ff;
+            background: rgba(0,20,50,0.6);
+            padding: 8px 24px;
+            border-radius: 20px;
+            display: inline-block;
+            border: 1px solid rgba(0,229,255,0.3);
+        }
+
+        .progress-bar {
+            width: 100%;
+            max-width: 600px;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            margin: 8px auto 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00e5ff, #FFD700);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .score-display {
+            font-size: 22px;
+            color: #fff;
+            margin-top: 6px;
+        }
+        .score-display span {
+            color: #FFD700;
+            font-weight: bold;
+        }
+
+        /* ---- Player Jet ---- */
+        .player-jet-container {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 90px;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .player-jet {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.6));
+        }
+
+        /* ---- Enemies (target bubbles) ---- */
+        .enemy {
+            position: absolute;
+            background: radial-gradient(circle at 30% 30%, #ff4757, #c0392b);
+            border: 2px solid rgba(255,100,100,0.5);
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: crosshair;
+            transition: transform 0.1s ease;
+            box-shadow: 0 0 20px rgba(255,71,87,0.4), inset 0 -5px 15px rgba(0,0,0,0.3);
+            z-index: 5;
+            user-select: none;
+        }
+
+        .enemy:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(255,71,87,0.7), inset 0 -5px 15px rgba(0,0,0,0.3);
+        }
+
+        .enemy::after {
+            content: '';
+            position: absolute;
+            top: 12px; left: 16px;
+            width: 14px; height: 8px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 50%;
+            transform: rotate(-30deg);
+        }
+
+        /* Enemy health bar */
+        .enemy-hp {
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 4px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .enemy-hp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4757, #ff6b81);
+            border-radius: 2px;
+            transition: width 0.2s ease;
+        }
+
+        /* ---- Bullets ---- */
+        .bullet {
+            position: absolute;
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(180deg, #00e5ff, transparent);
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.8), 0 0 20px rgba(0, 229, 255, 0.4);
+            z-index: 8;
+            pointer-events: none;
+        }
+
+        /* ---- Explosion particles ---- */
+        .explosion {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #fff 0%, #FFD700 30%, transparent 70%);
+            animation: explode 0.5s ease forwards;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(0); opacity: 1; }
+            50% { transform: scale(2); opacity: 0.8; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+
+        /* ---- Debris particles ---- */
+        .debris {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #ff4757;
+            border-radius: 1px;
+            animation: debrisFly 0.8s ease-out forwards;
+            pointer-events: none;
+            z-index: 12;
+        }
+
+        @keyframes debrisFly {
+            0% { opacity: 1; }
+            100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0); }
+        }
+
+        /* Score popup on kill */
+        .score-popup {
+            position: absolute;
+            font-size: 28px;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8), 0 0 15px rgba(255,215,0,0.5);
+            pointer-events: none;
+            z-index: 20;
+            animation: floatUp 1s ease forwards;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
+        }
+            white-space: nowrap;
+            font-family: inherit;
+            z-index: 5;
+        }
+
+        .target-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 6px 25px rgba(0,0,0,0.4);
+        }
+
+        .target-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Correct shoot */
+        .target-btn.hit-correct {
+            animation: shootCorrect 0.6s ease forwards;
+        }
+
+        /* Wrong shoot */
+        .target-btn.hit-wrong {
+            animation: shootWrong 0.5s ease forwards;
+        }
+
+        @keyframes shootCorrect {
+            0% { transform: scale(1); opacity: 1; }
+            30% { transform: scale(1.4); background: linear-gradient(135deg, #4CAF50, #66BB6A); }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        @keyframes shootWrong {
+            0% { transform: translateX(0); }
+            20% { transform: translateX(-8px) rotate(-3deg); background: linear-gradient(135deg, #f44336, #e57373); }
+            40% { transform: translateX(8px) rotate(3deg); }
+            60% { transform: translateX(-5px) rotate(-2deg); }
+            80% { transform: translateX(5px) rotate(1deg); background: linear-gradient(135deg, #667eea, #764ba2); }
+            100% { transform: translateX(0) rotate(0); opacity: 1; }
+        }
+
+        /* Score popup */
+        .score-popup {
+            position: absolute;
+            font-size: 32px;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            pointer-events: none;
+            z-index: 10;
+            animation: floatUp 1s ease forwards;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-10px); }
+            40% { transform: translateX(10px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+        }
+
+        @keyframes correctPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 28px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #333;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4CAF50, #66BB6A);
+            color: #fff;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .modal {
+            background: #fff;
+            border-radius: 30px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+
+        .modal h2 {
+            font-size: 42px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .modal p {
+            font-size: 26px;
+            margin-bottom: 30px;
+            color: #666;
+        }
+
+        .stars {
+            font-size: 60px;
+            margin: 20px 0;
+        }
+
+        .start-screen {
+            text-align: center;
+        }
+
+        .start-screen h1 {
+            font-size: 56px;
+            color: #FFD700;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+
+        .start-screen p {
+            font-size: 28px;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+
+        .level-info {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 30px auto;
+            max-width: 600px;
+        }
+
+        .level-info p {
+            font-size: 24px;
+            color: #fff;
+            margin: 10px 0;
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: fall linear forwards;
+            z-index: 101;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <!-- Shooting area is the game-board div -->
+
+    <!-- Start Screen -->
+    <div class="overlay" id="startScreen">
+        <div class="modal start-screen">
+            <h1>🏆 华文达人 🏆</h1>
+            <p>Chinese Master Challenge!</p>
+            <div class="level-info">
+                <p>📚 Level 1: 词语解释 Vocabulary & Meaning</p>
+                <p>🔗 Level 2: 近义词 Synonyms</p>
+                <p>🔄 Level 3: 反义词 Antonyms</p>
+                <p>📖 Level 4: 成语配对 Idiom Match</p>
+                <p>✍️ Level 5: 完成句子 Fill-in-the-Blanks</p>
+            </div>
+            <p style="color: #FFD700; font-size: 22px;">挑战自己，看看你能过几关！</p>
+            <button class="btn btn-primary" onclick="startGame()">开始游戏 Start!</button>
+        </div>
+    </div>
+
+    <!-- Level Complete Screen -->
+    <div class="overlay hidden" id="levelComplete">
+        <div class="modal">
+            <h2 id="levelCompleteTitle">🎉 太棒了!</h2>
+            <p id="levelCompleteText">你完成了这一关!</p>
+            <div class="stars" id="starsDisplay">⭐⭐⭐</div>
+            <button class="btn btn-success" id="nextLevelBtn" onclick="nextLevel()">下一关 ➡️</button>
+        </div>
+    </div>
+
+    <!-- Victory Screen -->
+    <div class="overlay hidden" id="victoryScreen">
+        <div class="modal">
+            <h2>🏆 恭喜你! 🏆</h2>
+            <p>你完成了所有关卡!</p>
+            <div class="stars">🌟🌟🌟🌟🌟</div>
+            <p style="font-size: 30px; color: #FFD700;">你就是华文达人!</p>
+            <p id="finalScore" style="color: #666;"></p>
+            <button class="btn btn-primary" onclick="restartGame()">再来一次 Play Again!</button>
+        </div>
+    </div>
+
+    <!-- Game Area -->
+    <div class="game-container">
+        <div class="header">
+            <div class="title">🏆 华文达人</div>
+            <div class="level-indicator" id="levelIndicator">Level 1: 词语解释</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="score-display">得分 Score: <span id="scoreDisplay">0</span></div>
+        </div>
+
+        <div class="game-board" id="gameBoard">
+            <!-- Shooting targets appear here -->
+        </div>
+    </div>
+
+    <script>
+        // ==================== GAME DATA ====================
+        const levels = [
+            {
+                name: "Level 1: 词语解释 Vocabulary",
+                pairs: [
+                    { left: "鼓励", right: "Encourage" },
+                    { left: "坚持", right: "Persist / Persevere" },
+                    { left: "忽略", right: "Ignore" },
+                    { left: "赞赏", right: "Appreciate / Admire" },
+                    { left: "疲倦", right: "Tired / Exhausted" },
+                    { left: "连忙", right: "Hurry / Immediately" },
+                    { left: "著名", right: "Famous / Renowned" }
+                ]
+            },
+            {
+                name: "Level 2: 近义词 Synonyms",
+                pairs: [
+                    { left: "赞赏", right: "称赞" },
+                    { left: "疲倦", right: "劳累" },
+                    { left: "连忙", right: "赶快" },
+                    { left: "著名", right: "有名" },
+                    { left: "美丽", right: "漂亮" },
+                    { left: "快乐", right: "高兴" },
+                    { left: "帮助", right: "协助" }
+                ]
+            },
+            {
+                name: "Level 3: 反义词 Antonyms",
+                pairs: [
+                    { left: "危险", right: "安全" },
+                    { left: "失败", right: "成功" },
+                    { left: "黑暗", right: "光明" },
+                    { left: "柔软", right: "坚硬" },
+                    { left: "吝啬", right: "慷慨" },
+                    { left: "骄傲", right: "谦虚" },
+                    { left: "复杂", right: "简单" }
+                ]
+            },
+            {
+                name: "Level 4: 成语配对 Idiom Match",
+                pairs: [
+                    { left: "守株", right: "待兔" },
+                    { left: "井底", right: "之蛙" },
+                    { left: "半途", right: "而废" },
+                    { left: "画蛇", right: "添足" },
+                    { left: "对牛", right: "弹琴" },
+                    { left: "拔苗", right: "助长" },
+                    { left: "亡羊", right: "补牢" }
+                ]
+            },
+            {
+                name: "Level 5: 完成句子 Fill-in-the-Blanks",
+                pairs: [
+                    { left: "老师___我们要好好学习。", right: "鼓励" },
+                    { left: "遇到困难，不要___，要___。", right: "放弃" },
+                    { left: "做事不能___，要坚持到底。", right: "半途而废" },
+                    { left: "他平时很___，这次却送了我一份礼物。", right: "吝啬" },
+                    { left: "这本书的内容太___了，我一看就懂。", right: "简单" },
+                    { left: "我们要做一个___的人，不能骄傲自大。", right: "谦虚" },
+                    { left: "他的画技太高超了，真是___！(成语)", right: "画龙点睛" }
+                ]
+            }
+        ];
+
+        // ==================== GAME STATE ====================
+        let currentLevel = 0;
+        let matchedPairs = 0;
+        let totalPairs = 0;
+        let score = 0;
+        let levelStars = [0, 0, 0, 0, 0];
+        let targets = [];         // active target buttons
+        let spawnIndex = 0;       // which pair to present next
+        let gameActive = false;
+
+        // Target lifespan per level (ms) — decreases each level for difficulty
+        const targetLifespans = [8000, 6500, 5200, 4200, 3500];
+
+        // ==================== UTILITY FUNCTIONS ====================
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function randomInRange(min, max) {
+            return min + Math.random() * (max - min);
+        }
+
+        function showScorePopup(x, y, text) {
+            const popup = document.createElement('div');
+            popup.className = 'score-popup';
+            popup.textContent = text;
+            popup.style.left = x + 'px';
+            popup.style.top = y + 'px';
+            document.getElementById('gameBoard').appendChild(popup);
+            setTimeout(() => popup.remove(), 1000);
+        }
+
+        function updateProgress() {
+            if (totalPairs === 0) return;
+            const percentage = (matchedPairs / totalPairs) * 100;
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('scoreDisplay').textContent = score;
+        }
+
+        // ==================== GAME LOGIC ====================
+        function startGame() {
+            document.getElementById('startScreen').classList.add('hidden');
+            currentLevel = 0;
+            score = 0;
+            levelStars = [0, 0, 0, 0, 0];
+            loadLevel();
+        }
+
+        // ---- Level data (pairs used to build questions) ----
+        function getLevelPairs() {
+            const level = levels[currentLevel];
+            const shuffled = shuffleArray(level.pairs).slice(0, 5);
+            totalPairs = shuffled.length;
+            matchedPairs = 0;
+            return { pairs: shuffled, name: level.name };
+        }
+
+        function loadLevel() {
+            gameActive = true;
+            spawnIndex = 0;
+            const { pairs, name } = getLevelPairs();
+            document.getElementById('levelIndicator').textContent = name;
+            updateProgress();
+            startSpawning(pairs);
+            animateTargets(); // start floating loop
+        }
+
+        // ---- Spawning question targets (floating buttons) ----
+        function startSpawning(pairs) {
+            const board = document.getElementById('gameBoard');
+            targets = [];
+            board.querySelectorAll('.target-btn, .score-popup').forEach(el => el.remove());
+
+            const intervalMs = 1000; // one question every second
+            spawnTimer = setInterval(() => {
+                if (!gameActive || spawnIndex >= pairs.length) {
+                    clearInterval(spawnTimer);
+                    return;
+                }
+                spawnQuestionTarget(pairs[spawnIndex]);
+                spawnIndex++;
+            }, intervalMs);
+        }
+
+        function spawnQuestionTarget(pair) {
+            const board = document.getElementById('gameBoard');
+            const btn = document.createElement('button');
+            btn.className = 'target-btn';
+            // Style as a "question bubble" — brighter gradient
+            btn.style.background = 'linear-gradient(135deg, #FFD700, #FFA500)';
+            btn.style.color = '#333';
+            btn.textContent = pair.left;
+
+            // Random position inside the board
+            const bw = board.clientWidth - 200;
+            const bh = board.clientHeight - 120;
+            const x = Math.max(10, Math.random() * Math.max(bw - 40, 40));
+            const y = Math.max(60, Math.random() * Math.max(bh - 40, 60));
+            btn.style.left = x + 'px';
+            btn.style.top = y + 'px';
+
+            // Floating direction
+            const angle = Math.random() * Math.PI * 2;
+            const speed = randomInRange(0.15, 0.35);
+            btn._vx = Math.cos(angle) * speed;
+            btn._vy = Math.sin(angle) * speed;
+
+            // Store game data
+            btn._pairId   = pair.left;
+            btn._correct  = pair.right;
+            btn._isAnswer = false;
+            btn._isQ      = true;
+
+            btn.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                handleQuestionClick(e, btn);
+            });
+
+            board.appendChild(btn);
+            targets.push(btn);
+
+            // Auto-remove after lifespan (missed question)
+            const lifespan = targetLifespans[currentLevel] || 3000;
+            setTimeout(() => removeTarget(btn), lifespan);
+
+            // Spawn answer buttons near the question
+            spawnAnswerButtons(pair.right, pair.left);
+        }
+
+        // ---- Spawn answer-choice buttons (4 floating targets) ----
+        function spawnAnswerButtons(correctAnswer, pairLeft) {
+            const board = document.getElementById('gameBoard');
+            const level = levels[currentLevel];
+            // Gather wrong answers from the same level's pairs
+            const allAnswers = level.pairs.filter(p => p.right !== correctAnswer);
+            const wrongAnswers = shuffleArray(allAnswers).slice(0, 3).map(p => p.right);
+            const options = shuffleArray([correctAnswer, ...wrongAnswers]);
+
+            options.forEach(answer => {
+                const btn = document.createElement('button');
+                btn.className = 'target-btn';
+                // Blue/purple for answer choices
+                btn.style.background = 'linear-gradient(135deg, #4ECDC4, #45B7D1)';
+                btn.textContent = answer;
+
+                const bw = board.clientWidth - 200;
+                const bh = board.clientHeight - 120;
+                const x = Math.max(10, Math.random() * Math.max(bw - 40, 40));
+                const y = Math.max(80, Math.random() * Math.max(bh - 40, 60));
+                btn.style.left = x + 'px';
+                btn.style.top = y + 'px';
+
+                const angle = Math.random() * Math.PI * 2;
+                const speed = randomInRange(0.15, 0.4);
+                btn._vx = Math.cos(angle) * speed;
+                btn._vy = Math.sin(angle) * speed;
+
+                btn._isAnswer   = true;
+                btn._answer     = answer;
+                btn._correctFor = pairLeft;
+
+                btn.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    handleAnswerClick(e, btn);
+                });
+
+                board.appendChild(btn);
+                targets.push(btn);
+
+                const lifespan = targetLifespans[currentLevel] || 3000;
+                setTimeout(() => removeTarget(btn), lifespan);
+            });
+        }
+
+        // ---- Click handling for question targets ----
+        function handleQuestionClick(e, btn) {
+            // Questions themselves don't need click — answers appear nearby.
+            // But we keep this in case future features want to highlight the question.
+        }
+
+        // ---- Click handling for answer buttons ----
+        function handleAnswerClick(e, btn) {
+            if (!gameActive || !btn._isAnswer) return;
+            const correctFor = btn._correctFor;
+
+            const level = levels[currentLevel];
+            const pair = level.pairs.find(p => p.left === correctFor);
+            if (!pair) return;
+
+            const rect = btn.getBoundingClientRect();
+            const boardRect = document.getElementById('gameBoard').getBoundingClientRect();
+            const bx = rect.left - boardRect.left + rect.width / 2;
+            const by = rect.top - boardRect.top;
+
+            if (btn._answer === pair.right) {
+                // Correct!
+                btn.classList.add('hit-correct');
+                showScorePopup(bx, by, '+10 ✨');
+                setTimeout(() => removeTarget(btn), 600);
+                score += 10;
+                matchedPairs++;
+                updateProgress();
+                if (matchedPairs === totalPairs) {
+                    gameActive = false;
+                    clearInterval(spawnTimer);
+                    // Fade out remaining targets
+                    targets.forEach(t => { t.style.transition = 'opacity 0.3s'; t.style.opacity = '0'; });
+                    setTimeout(() => showLevelComplete(), 800);
+                }
+            } else {
+                // Wrong!
+                btn.classList.add('hit-wrong');
+                showScorePopup(bx, by, '❌');
+                setTimeout(() => removeTarget(btn), 500);
+            }
+        }
+
+        function removeTarget(btn) {
+            const idx = targets.indexOf(btn);
+            if (idx > -1) targets.splice(idx, 1);
+            btn.remove();
+        }
+
+        // ---- Floating animation loop for all targets ----
+        function animateTargets() {
+            const board = document.getElementById('gameBoard');
+            const bw = board.clientWidth;
+            const bh = board.clientHeight;
+            targets.forEach(btn => {
+                let x = parseFloat(btn.style.left);
+                let y = parseFloat(btn.style.top);
+                let vx = btn._vx || 0.5;
+                let vy = btn._vy || 0.3;
+
+                // Bounce off edges (with padding)
+                const pad = 5;
+                if (x <= pad || x >= bw - btn.offsetWidth - pad) vx = -vx;
+                if (y <= pad + 45 || y >= bh - btn.offsetHeight - pad) vy = -vy;
+
+                x += vx;
+                y += vy;
+
+                // Clamp to viewport
+                x = Math.max(pad, Math.min(x, bw - btn.offsetWidth));
+                y = Math.max(pad + 45, Math.min(y, bh - btn.offsetHeight));
+
+                btn.style.left = x + 'px';
+                btn.style.top  = y + 'px';
+            });
+            if (gameActive) requestAnimationFrame(animateTargets);
+        }
+
+        // Compatibility stubs — no longer used in shooting mode
+        function selectCard() {}
+        function attemptMatch() {}
+
+        // ==================== LEVEL COMPLETE ====================
+        function showLevelComplete() {
+            const overlay = document.getElementById('levelComplete');
+            overlay.classList.remove('hidden');
+            
+            // Calculate stars based on score for this level
+            let stars = '⭐';
+            if (score >= currentLevel * 40 + 35) stars = '⭐⭐⭐';
+            else if (score >= currentLevel * 40 + 20) stars = '⭐⭐';
+            levelStars[currentLevel] = stars;
+            
+            document.getElementById('starsDisplay').textContent = stars;
+            
+            if (currentLevel < 4) {
+                document.getElementById('levelCompleteTitle').textContent = '🎉 太棒了!';
+                document.getElementById('levelCompleteText').textContent = `你完成了 Level ${currentLevel + 1}!`;
+                document.getElementById('nextLevelBtn').textContent = '下一关 ➡️';
+            } else {
+                document.getElementById('levelCompleteTitle').textContent = '🏆 恭喜你! 🏆';
+                document.getElementById('levelCompleteText').textContent = '你完成了所有关卡!';
+                document.getElementById('nextLevelBtn').textContent = '查看结果 View Results';
+            }
+        }
+
+        function nextLevel() {
+            document.getElementById('levelComplete').classList.add('hidden');
+            
+            if (currentLevel < 4) {
+                currentLevel++;
+                loadLevel();
+            } else {
+                showVictory();
+            }
+        }
+
+        // ==================== VICTORY SCREEN ====================
+        function showVictory() {
+            const overlay = document.getElementById('victoryScreen');
+            overlay.classList.remove('hidden');
+            document.getElementById('finalScore').textContent = `总分: ${score} / 50`;
+            createConfetti();
+        }
+
+        function createConfetti() {
+            const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
+            
+            for (let i = 0; i < 100; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                    confetti.style.width = (Math.random() * 10 + 5) + 'px';
+                    confetti.style.height = confetti.style.width;
+                    document.body.appendChild(confetti);
+                    
+                    setTimeout(() => confetti.remove(), 5000);
+                }, i * 50);
+            }
+        }
+
+        function restartGame() {
+            document.getElementById('victoryScreen').classList.add('hidden');
+            startGame();
+        }
+
+        // Prevent default touch behaviors
+        document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+        document.addEventListener('contextmenu', e => e.preventDefault());
+    </script>
+</body>
+</html>

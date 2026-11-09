@@ -3,700 +3,651 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>华文达人 Chinese Master</title>
+    <title>华文达人 - 战机版 Chinese Master Fighter Jet</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 
         body {
             font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #050a14;
             min-height: 100vh;
             overflow: hidden;
             touch-action: none;
         }
 
-        .game-container {
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+        /* Sky gradient */
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background: linear-gradient(180deg, #050a14 0%, #0a1e3d 50%, #122a4f 100%);
+            z-index: -2;
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
+        /* Stars */
+        .stars { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+        .star { position: absolute; background: #fff; border-radius: 50%; animation: twinkle var(--dur) infinite alternate; opacity: 0.3; }
+        @keyframes twinkle { from { opacity: 0.1; } to { opacity: 0.8; } }
+
+        /* HUD bar */
+        .hud {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+            background: linear-gradient(180deg, rgba(5,10,20,0.95) 0%, rgba(5,10,20,0.7) 80%, transparent 100%);
+            padding: 10px 20px 16px;
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
         }
 
-        .title {
-            font-size: 48px;
-            color: #fff;
-            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
-            margin-bottom: 10px;
-            font-weight: bold;
+        .hud-section { text-align: center; flex-shrink: 0; }
+        .hud-label { font-size: 12px; color: #6688aa; text-transform: uppercase; letter-spacing: 1px; }
+        .hud-value { font-size: 22px; font-weight: bold; color: #FFD700; text-shadow: 0 0 10px rgba(255,215,0,0.4); }
+
+        .hud-level { background: rgba(0,80,160,0.3); border: 1px solid rgba(0,229,255,0.3); border-radius: 20px; padding: 6px 18px; text-align: center; }
+        .hud-level .hud-label { font-size: 11px; color: #00e5ff; }
+        .hud-level .hud-value { font-size: 16px; color: #00e5ff; white-space: nowrap; }
+
+        /* Progress bar */
+        .progress-wrap { width: 120px; }
+        .progress-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #00e5ff, #FFD700); transition: width 0.3s ease; width: 0%; }
+
+        /* Game canvas area */
+        .game-area {
+            position: absolute; inset: 60px 0 0 0; overflow: hidden;
         }
 
-        .level-indicator {
-            font-size: 28px;
-            color: #FFD700;
-            background: rgba(0,0,0,0.2);
-            padding: 10px 30px;
-            border-radius: 25px;
-            display: inline-block;
+        /* ---- Player Jet SVG ---- */
+        .jet-container {
+            position: absolute; bottom: 20px; width: 70px; height: 85px; z-index: 20; pointer-events: none; transition: left 0.08s ease-out;
         }
 
-        .progress-bar {
-            width: 80%;
-            max-width: 600px;
-            height: 20px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 10px;
-            margin: 15px auto;
-            overflow: hidden;
+        /* Engine flame */
+        .flame {
+            position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 18px; height: 28px;
+            background: radial-gradient(ellipse at center, #fff 0%, #FFD700 20%, rgba(255,120,0,0.7) 50%, transparent 100%);
+            animation: flameFlicker 0.08s infinite alternate;
+        }
+        @keyframes flameFlicker { from { height: 22px; opacity: 0.7; } to { height: 32px; opacity: 1; } }
+
+        /* ---- Enemies (circles with Chinese characters) ---- */
+        .enemy {
+            position: absolute; width: 56px; height: 56px; border-radius: 50%; cursor: crosshair; z-index: 5;
+            display: flex; align-items: center; justify-content: center; user-select: none;
+            background: radial-gradient(circle at 35% 35%, #ff6b6b, #c0392b);
+            box-shadow: 0 0 18px rgba(255,71,87,0.4), inset 0 -4px 12px rgba(0,0,0,0.3), inset 0 4px 8px rgba(255,150,150,0.2);
+            border: 2px solid rgba(255,100,100,0.4);
+            font-size: 24px; font-weight: bold; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            animation: enemyPulse 2s infinite alternate;
+        }
+        @keyframes enemyPulse { from { box-shadow: 0 0 18px rgba(255,71,87,0.4), inset 0 -4px 12px rgba(0,0,0,0.3); } to { box-shadow: 0 0 28px rgba(255,71,87,0.6), inset 0 -4px 12px rgba(0,0,0,0.3); } }
+
+        .enemy::after {
+            content: ''; position: absolute; top: 8px; left: 14px; width: 12px; height: 6px;
+            background: rgba(255,255,255,0.2); border-radius: 50%; transform: rotate(-30deg);
         }
 
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #FFD700, #FFA500);
-            border-radius: 10px;
-            transition: width 0.5s ease;
-            width: 0%;
+        .enemy.hp1 { animation: enemyPulse 1s infinite alternate !important; }
+        .enemy.hp1::before { content: '⚠'; position: absolute; top: -6px; right: -6px; font-size: 14px; color: #ff6b6b; }
+
+        /* Enemy HP bar */
+        .enemy-hp {
+            position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 46px; height: 3px;
+            background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;
+        }
+        .enemy-hp-fill { height: 100%; background: linear-gradient(90deg, #ff4757, #ff6b81); border-radius: 2px; transition: width 0.15s ease; }
+
+        /* ---- Bullet ---- */
+        .bullet {
+            position: absolute; width: 4px; height: 18px; z-index: 8; pointer-events: none; border-radius: 2px;
+            background: linear-gradient(180deg, #00e5ff, rgba(0,229,255,0.3), transparent);
+            box-shadow: 0 0 8px rgba(0,229,255,0.9), 0 0 16px rgba(0,229,255,0.4);
         }
 
-        .score-display {
-            font-size: 24px;
-            color: #fff;
-            margin-top: 10px;
+        /* ---- Explosion ---- */
+        .explosion {
+            position: absolute; width: 60px; height: 60px; border-radius: 50%; pointer-events: none; z-index: 15;
+            background: radial-gradient(circle, #fff 0%, #FFD700 25%, rgba(255,100,0,0.6) 50%, transparent 70%);
+            animation: explodeAnim 0.45s ease forwards;
+        }
+        @keyframes explodeAnim {
+            0% { transform: scale(0); opacity: 1; }
+            50% { transform: scale(2); opacity: 0.7; }
+            100% { transform: scale(3); opacity: 0; }
         }
 
-        .game-board {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            overflow: hidden;
-        }
+        /* ---- Debris particles ---- */
+        .debris { position: absolute; width: 6px; height: 6px; z-index: 12; pointer-events: none; border-radius: 1px; animation: debrisFly var(--dur) ease-out forwards; }
+        @keyframes debrisFly { from { opacity: 1; transform: translate(0,0); } to { opacity: 0; transform: translate(var(--dx), var(--dy)); } }
 
-        /* Shooting targets */
-        .target-btn {
-            position: absolute;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border: 3px solid rgba(255,255,255,0.3);
-            color: #fff;
-            font-size: 22px;
-            font-weight: bold;
-            padding: 14px 28px;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            white-space: nowrap;
-            font-family: inherit;
-            z-index: 5;
-        }
+        /* ---- Score popup ---- */
+        .score-popup { position: absolute; font-size: 26px; font-weight: bold; pointer-events: none; z-index: 20;
+            animation: floatUp 1s ease forwards; text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
+        @keyframes floatUp { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-90px) scale(1.6); } }
 
-        .target-btn:hover {
-            transform: scale(1.08);
-            box-shadow: 0 6px 25px rgba(0,0,0,0.4);
-        }
+        /* ---- Crosshair ---- */
+        .crosshair { position: fixed; width: 32px; height: 32px; pointer-events: none; z-index: 1000; transform: translate(-50%, -50%); opacity: 0.7; display: none; }
+        .crosshair::before, .crosshair::after { content: ''; position: absolute; background: #FFD700; }
+        .crosshair::before { width: 2px; height: 100%; left: 50%; transform: translateX(-50%); }
+        .crosshair::after { width: 100%; height: 2px; top: 50%; transform: translateY(-50%); }
 
-        .target-btn:active {
-            transform: scale(0.95);
-        }
-
-        /* Correct shoot */
-        .target-btn.hit-correct {
-            animation: shootCorrect 0.6s ease forwards;
-        }
-
-        /* Wrong shoot */
-        .target-btn.hit-wrong {
-            animation: shootWrong 0.5s ease forwards;
-        }
-
-        @keyframes shootCorrect {
-            0% { transform: scale(1); opacity: 1; }
-            30% { transform: scale(1.4); background: linear-gradient(135deg, #4CAF50, #66BB6A); }
-            100% { transform: scale(0); opacity: 0; }
-        }
-
-        @keyframes shootWrong {
-            0% { transform: translateX(0); }
-            20% { transform: translateX(-8px) rotate(-3deg); background: linear-gradient(135deg, #f44336, #e57373); }
-            40% { transform: translateX(8px) rotate(3deg); }
-            60% { transform: translateX(-5px) rotate(-2deg); }
-            80% { transform: translateX(5px) rotate(1deg); background: linear-gradient(135deg, #667eea, #764ba2); }
-            100% { transform: translateX(0) rotate(0); opacity: 1; }
-        }
-
-        /* Score popup */
-        .score-popup {
-            position: absolute;
-            font-size: 32px;
-            font-weight: bold;
-            color: #FFD700;
-            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
-            pointer-events: none;
-            z-index: 10;
-            animation: floatUp 1s ease forwards;
-        }
-
-        @keyframes floatUp {
-            0% { opacity: 1; transform: translateY(0) scale(1); }
-            100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            20% { transform: translateX(-10px); }
-            40% { transform: translateX(10px); }
-            60% { transform: translateX(-10px); }
-            80% { transform: translateX(10px); }
-        }
-
-        @keyframes correctPulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.15); }
-            100% { transform: scale(1); }
-        }
-
-        .btn {
-            padding: 15px 40px;
-            font-size: 28px;
-            border: none;
-            border-radius: 30px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: bold;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-        }
-
-        .btn:hover {
-            transform: scale(1.05);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            color: #333;
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #4CAF50, #66BB6A);
-            color: #fff;
-        }
-
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-        }
-
-        .overlay.hidden {
-            display: none;
-        }
+        /* ---- Overlays ---- */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+        .overlay.hidden { display: none; }
 
         .modal {
-            background: #fff;
-            border-radius: 30px;
-            padding: 40px;
-            text-align: center;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            background: linear-gradient(135deg, rgba(10,20,50,0.95), rgba(20,40,80,0.95)); border: 1px solid rgba(0,229,255,0.3);
+            border-radius: 24px; padding: 36px; text-align: center; max-width: 520px; width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
         }
 
-        .modal h2 {
-            font-size: 42px;
-            margin-bottom: 20px;
-            color: #333;
-        }
+        .modal h2 { font-size: 40px; color: #FFD700; text-shadow: 0 0 20px rgba(255,215,0,0.3); margin-bottom: 16px; }
+        .modal p { font-size: 22px; color: #aaccff; margin-bottom: 12px; line-height: 1.4; }
+        .modal .subtitle { font-size: 18px; color: #6688aa; }
 
-        .modal p {
-            font-size: 26px;
-            margin-bottom: 30px;
-            color: #666;
-        }
+        .stars { font-size: 50px; margin: 16px 0; letter-spacing: 4px; }
 
-        .stars {
-            font-size: 60px;
-            margin: 20px 0;
-        }
+        .btn { padding: 14px 36px; font-size: 24px; border: none; border-radius: 30px; cursor: pointer; font-weight: bold; transition: all 0.2s ease; font-family: inherit; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .btn:hover { transform: scale(1.05); }
+        .btn:active { transform: scale(0.95); }
 
-        .start-screen {
-            text-align: center;
-        }
+        .btn-primary { background: linear-gradient(135deg, #FFD700, #FFA500); color: #1a1a2e; }
+        .btn-success { background: linear-gradient(135deg, #4CAF50, #66BB6A); color: #fff; }
+        .btn-cyan { background: linear-gradient(135deg, #00bcd4, #00e5ff); color: #0a1628; }
 
-        .start-screen h1 {
-            font-size: 56px;
-            color: #FFD700;
-            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
-            margin-bottom: 20px;
-        }
+        /* Level info */
+        .level-info { background: rgba(0,60,120,0.2); border-radius: 16px; padding: 20px; margin: 20px auto; max-width: 480px; border: 1px solid rgba(0,229,255,0.15); }
+        .level-info p { font-size: 19px; margin: 6px 0; color: #aaddff; }
+        .level-info strong { color: #00e5ff; }
 
-        .start-screen p {
-            font-size: 28px;
-            color: #fff;
-            margin-bottom: 10px;
-        }
+        /* Confetti */
+        .confetti { position: fixed; width: 10px; height: 10px; border-radius: 50%; animation: fall linear forwards; z-index: 101; pointer-events: none; }
+        @keyframes fall { to { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
 
-        .level-info {
-            background: rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 25px;
-            margin: 30px auto;
-            max-width: 600px;
-        }
+        /* Health bar for player */
+        .health-bar-wrap { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); width: 200px; z-index: 50; }
+        .health-label { font-size: 11px; color: #ff8a80; text-align: center; margin-bottom: 3px; letter-spacing: 1px; }
+        .health-bar { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+        .health-fill { height: 100%; background: linear-gradient(90deg, #ff4757, #ff6b81, #FFD700); transition: width 0.3s ease; width: 100%; border-radius: 4px; }
+        .health-fill.damaged { animation: healthFlash 0.3s ease; }
+        @keyframes healthFlash { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-        .level-info p {
-            font-size: 24px;
-            color: #fff;
-            margin: 10px 0;
-        }
-
-        .confetti {
-            position: fixed;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            animation: fall linear forwards;
-            z-index: 101;
-        }
-
-        @keyframes fall {
-            to {
-                transform: translateY(100vh) rotate(720deg);
-                opacity: 0;
-            }
-        }
+        /* Ammo indicator */
+        .ammo-indicator { display: flex; justify-content: center; gap: 4px; margin-top: 6px; }
+        .ammo-dot { width: 8px; height: 12px; background: #FFD700; border-radius: 2px; transition: opacity 0.2s ease; }
+        .ammo-dot.empty { opacity: 0.15; background: #666; }
 
     </style>
 </head>
 <body>
-    <!-- Shooting area is the game-board div -->
+    <!-- Stars -->
+    <div class="stars" id="starsContainer"></div>
 
-    <!-- Start Screen -->
-    <div class="overlay" id="startScreen">
-        <div class="modal start-screen">
-            <h1>🏆 华文达人 🏆</h1>
-            <p>Chinese Master Challenge!</p>
-            <div class="level-info">
-                <p>📚 Level 1: 词语解释 Vocabulary & Meaning</p>
-                <p>🔗 Level 2: 近义词 Synonyms</p>
-                <p>🔄 Level 3: 反义词 Antonyms</p>
-                <p>📖 Level 4: 成语配对 Idiom Match</p>
-                <p>✍️ Level 5: 完成句子 Fill-in-the-Blanks</p>
-            </div>
-            <p style="color: #FFD700; font-size: 22px;">挑战自己，看看你能过几关！</p>
-            <button class="btn btn-primary" onclick="startGame()">开始游戏 Start!</button>
+    <!-- HUD -->
+    <div class="hud" id="hud" style="display:none;">
+        <div class="hud-section">
+            <div class="hud-label">Score</div>
+            <div class="hud-value" id="hudScore">0</div>
+        </div>
+        <div class="hud-level">
+            <div class="hud-label">Mission</div>
+            <div class="hud-value" id="hudLevel">Level 1</div>
+        </div>
+        <div class="hud-section progress-wrap">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+        <div class="hud-section">
+            <div class="hud-label">HP</div>
+            <div class="hud-value" id="hudHp" style="color:#ff4757;">100</div>
         </div>
     </div>
 
-    <!-- Level Complete Screen -->
+    <!-- Health bar at bottom -->
+    <div class="health-bar-wrap" id="healthWrap" style="display:none;">
+        <div class="health-label">✈️ 战机 HP Jet Health</div>
+        <div class="health-bar"><div class="health-fill" id="healthFill"></div></div>
+    </div>
+
+    <!-- Game area -->
+    <div class="game-area" id="gameArea">
+        <!-- Player jet -->
+        <div class="jet-container" id="jetContainer">
+            <svg viewBox="0 0 70 85" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Body -->
+                <path d="M35 2 L42 18 L50 45 L55 70 L35 65 L15 70 L20 45 L28 18 Z" fill="url(#jetGrad)" stroke="#00e5ff" stroke-width="1"/>
+                <!-- Wings -->
+                <path d="M15 40 L5 55 L20 52 Z" fill="#1a3a5c" stroke="#00e5ff" stroke-width="0.8"/>
+                <path d="M55 40 L65 55 L50 52 Z" fill="#1a3a5c" stroke="#00e5ff" stroke-width="0.8"/>
+                <!-- Tail -->
+                <path d="M22 62 L18 78 L28 68 Z" fill="#0d2a4a" stroke="#00e5ff" stroke-width="0.5"/>
+                <path d="M48 62 L52 78 L42 68 Z" fill="#0d2a4a" stroke="#00e5ff" stroke-width="0.5"/>
+                <!-- Cockpit -->
+                <ellipse cx="35" cy="25" rx="6" ry="10" fill="#00e5ff" opacity="0.6"/>
+                <!-- Nose light -->
+                <circle cx="35" cy="4" r="3" fill="#FFD700" opacity="0.8">
+                    <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite"/>
+                </circle>
+                <!-- Engine glow -->
+                <defs>
+                    <linearGradient id="jetGrad" x1="35" y1="2" x2="35" y2="70">
+                        <stop offset="0%" stop-color="#1a3a5c"/>
+                        <stop offset="50%" stop-color="#0d2a4a"/>
+                        <stop offset="100%" stop-color="#050a14"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <div class="flame"></div>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div class="overlay" id="startScreen">
+        <div class="modal">
+            <h2>🛩️ 战机出击 🛩️</h2>
+            <p style="color:#00e5ff; font-size:26px;">Chinese Master Fighter Jet!</p>
+            <div class="level-info">
+                <p>📚 L1: 词语解释 Vocabulary & Meaning</p>
+                <p>🔗 L2: 近义词 Synonyms</p>
+                <p>🔄 L3: 反义词 Antonyms</p>
+                <p>📖 L4: 成语配对 Idiom Match</p>
+                <p>✍️ L5: 完成句子 Fill-in-the-Blanks</p>
+            </div>
+            <p class="subtitle">点击屏幕射击 • 移动战机躲避</p>
+            <br>
+            <button class="btn btn-primary" onclick="startGame()">出击 Launch!</button>
+        </div>
+    </div>
+
+    <!-- Level Complete -->
     <div class="overlay hidden" id="levelComplete">
         <div class="modal">
-            <h2 id="levelCompleteTitle">🎉 太棒了!</h2>
-            <p id="levelCompleteText">你完成了这一关!</p>
+            <h2 id="lcTitle">🎉 太棒了!</h2>
+            <p id="lcText"></p>
             <div class="stars" id="starsDisplay">⭐⭐⭐</div>
             <button class="btn btn-success" id="nextLevelBtn" onclick="nextLevel()">下一关 ➡️</button>
         </div>
     </div>
 
-    <!-- Victory Screen -->
+    <!-- Victory -->
     <div class="overlay hidden" id="victoryScreen">
         <div class="modal">
             <h2>🏆 恭喜你! 🏆</h2>
             <p>你完成了所有关卡!</p>
             <div class="stars">🌟🌟🌟🌟🌟</div>
-            <p style="font-size: 30px; color: #FFD700;">你就是华文达人!</p>
-            <p id="finalScore" style="color: #666;"></p>
+            <p style="font-size:30px; color:#FFD700;">你就是华文达人!</p>
+            <p id="finalScore" style="color:#aaccff;"></p>
             <button class="btn btn-primary" onclick="restartGame()">再来一次 Play Again!</button>
         </div>
     </div>
 
-    <!-- Game Area -->
-    <div class="game-container">
-        <div class="header">
-            <div class="title">🏆 华文达人</div>
-            <div class="level-indicator" id="levelIndicator">Level 1: 词语解释</div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <div class="score-display">得分 Score: <span id="scoreDisplay">0</span></div>
-        </div>
-
-        <div class="game-board" id="gameBoard">
-            <!-- Shooting targets appear here -->
+    <!-- Game Over -->
+    <div class="overlay hidden" id="gameOverScreen">
+        <div class="modal">
+            <h2>💥 战机坠毁!</h2>
+            <p id="goText">你的战机被击落了...</p>
+            <p style="font-size:28px; color:#ff6b6b;">得分 Score: <span id="finalScoreLose">0</span></p>
+            <button class="btn btn-primary" onclick="restartGame()">再来一次 Play Again!</button>
         </div>
     </div>
 
     <script>
-        // ==================== GAME DATA ====================
+        // ============ GAME DATA ============
         const levels = [
-            {
-                name: "Level 1: 词语解释 Vocabulary",
-                pairs: [
-                    { left: "鼓励", right: "Encourage" },
-                    { left: "坚持", right: "Persist / Persevere" },
-                    { left: "忽略", right: "Ignore" },
-                    { left: "赞赏", right: "Appreciate / Admire" },
-                    { left: "疲倦", right: "Tired / Exhausted" },
-                    { left: "连忙", right: "Hurry / Immediately" },
-                    { left: "著名", right: "Famous / Renowned" }
-                ]
-            },
-            {
-                name: "Level 2: 近义词 Synonyms",
-                pairs: [
-                    { left: "赞赏", right: "称赞" },
-                    { left: "疲倦", right: "劳累" },
-                    { left: "连忙", right: "赶快" },
-                    { left: "著名", right: "有名" },
-                    { left: "美丽", right: "漂亮" },
-                    { left: "快乐", right: "高兴" },
-                    { left: "帮助", right: "协助" }
-                ]
-            },
-            {
-                name: "Level 3: 反义词 Antonyms",
-                pairs: [
-                    { left: "危险", right: "安全" },
-                    { left: "失败", right: "成功" },
-                    { left: "黑暗", right: "光明" },
-                    { left: "柔软", right: "坚硬" },
-                    { left: "吝啬", right: "慷慨" },
-                    { left: "骄傲", right: "谦虚" },
-                    { left: "复杂", right: "简单" }
-                ]
-            },
-            {
-                name: "Level 4: 成语配对 Idiom Match",
-                pairs: [
-                    { left: "守株", right: "待兔" },
-                    { left: "井底", right: "之蛙" },
-                    { left: "半途", right: "而废" },
-                    { left: "画蛇", right: "添足" },
-                    { left: "对牛", right: "弹琴" },
-                    { left: "拔苗", right: "助长" },
-                    { left: "亡羊", right: "补牢" }
-                ]
-            },
-            {
-                name: "Level 5: 完成句子 Fill-in-the-Blanks",
-                pairs: [
-                    { left: "老师___我们要好好学习。", right: "鼓励" },
-                    { left: "遇到困难，不要___，要___。", right: "放弃" },
-                    { left: "做事不能___，要坚持到底。", right: "半途而废" },
-                    { left: "他平时很___，这次却送了我一份礼物。", right: "吝啬" },
-                    { left: "这本书的内容太___了，我一看就懂。", right: "简单" },
-                    { left: "我们要做一个___的人，不能骄傲自大。", right: "谦虚" },
-                    { left: "他的画技太高超了，真是___！(成语)", right: "画龙点睛" }
-                ]
-            }
+            { name: "Level 1: 词语解释 Vocabulary", pairs: [
+                { left: "鼓励", right: "Encourage" }, { left: "坚持", right: "Persist / Persevere" },
+                { left: "忽略", right: "Ignore" }, { left: "赞赏", right: "Appreciate / Admire" },
+                { left: "疲倦", right: "Tired / Exhausted" }, { left: "连忙", right: "Hurry / Immediately" },
+                { left: "著名", right: "Famous / Renowned" }
+            ]},
+            { name: "Level 2: 近义词 Synonyms", pairs: [
+                { left: "赞赏", right: "称赞" }, { left: "疲倦", right: "劳累" },
+                { left: "连忙", right: "赶快" }, { left: "著名", right: "有名" },
+                { left: "美丽", right: "漂亮" }, { left: "快乐", right: "高兴" },
+                { left: "帮助", right: "协助" }
+            ]},
+            { name: "Level 3: 反义词 Antonyms", pairs: [
+                { left: "危险", right: "安全" }, { left: "失败", right: "成功" },
+                { left: "黑暗", right: "光明" }, { left: "柔软", right: "坚硬" },
+                { left: "吝啬", right: "慷慨" }, { left: "骄傲", right: "谦虚" },
+                { left: "复杂", right: "简单" }
+            ]},
+            { name: "Level 4: 成语配对 Idiom Match", pairs: [
+                { left: "守株", right: "待兔" }, { left: "井底", right: "之蛙" },
+                { left: "半途", right: "而废" }, { left: "画蛇", right: "添足" },
+                { left: "对牛", right: "弹琴" }, { left: "拔苗", right: "助长" },
+                { left: "亡羊", right: "补牢" }
+            ]},
+            { name: "Level 5: 完成句子 Fill-in-the-Blanks", pairs: [
+                { left: "老师___我们要好好学习。", right: "鼓励" },
+                { left: "遇到困难，不要___，要___。", right: "放弃" },
+                { left: "做事不能___，要坚持到底。", right: "半途而废" },
+                { left: "他平时很___，这次却送了我一份礼物。", right: "吝啬" },
+                { left: "这本书的内容太___了，我一看就懂。", right: "简单" },
+                { left: "我们要做一个___的人，不能骄傲自大。", right: "谦虚" },
+                { left: "他的画技太高超了，真是___！(成语)", right: "画龙点睛" }
+            ]}
         ];
 
-        // ==================== GAME STATE ====================
-        let currentLevel = 0;
-        let matchedPairs = 0;
-        let totalPairs = 0;
-        let score = 0;
-        let levelStars = [0, 0, 0, 0, 0];
-        let targets = [];         // active target buttons
-        let spawnIndex = 0;       // which pair to present next
-        let gameActive = false;
+        // ============ GAME STATE ============
+        let currentLevel = 0, score = 0, matchedPairs = 0, totalPairs = 0;
+        let levelStars = [0,0,0,0,0], playerHP = 100, maxHP = 100;
+        let gameActive = false, enemies = [], bullets = [];
+        let spawnInterval, animFrameId;
+        let jetX = window.innerWidth / 2;
 
-        // Target lifespan per level (ms) — decreases each level for difficulty
-        const targetLifespans = [8000, 6500, 5200, 4200, 3500];
+        // Difficulty curves per level
+        const enemySpeeds  = [[1.5,2.5],[2,3.2],[2.5,3.8],[3,4.5],[3.5,5]];
+        const enemyHPVals  = [[1],[1,2],[1,2],[2,3],[2,3,4]]; // possible HP values
+        const spawnDurations = [2200, 1800, 1500, 1200, 1000]; // ms between spawns
 
-        // ==================== UTILITY FUNCTIONS ====================
-        function shuffleArray(array) {
-            const shuffled = [...array];
-            for (let i = shuffled.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        function shuffleArray(arr) {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+            return a;
+        }
+
+        // ============ STARS BACKGROUND ============
+        function generateStars() {
+            const c = document.getElementById('starsContainer');
+            for (let i = 0; i < 80; i++) {
+                const s = document.createElement('div');
+                s.className = 'star';
+                const size = Math.random() * 2 + 1;
+                s.style.width = size + 'px';
+                s.style.height = size + 'px';
+                s.style.left = Math.random() * 100 + '%';
+                s.style.top = Math.random() * 100 + '%';
+                s.style.setProperty('--dur', (Math.random() * 3 + 2) + 's');
+                c.appendChild(s);
             }
-            return shuffled;
+        }
+        generateStars();
+
+        // ============ HUD ============
+        function updateHUD() {
+            document.getElementById('hudScore').textContent = score;
+            document.getElementById('hudHp').textContent = Math.max(0, playerHP);
+            document.getElementById('progressFill').style.width = ((matchedPairs / totalPairs) * 100) + '%';
+            document.getElementById('hudLevel').textContent = 'L' + (currentLevel + 1);
         }
 
-        function randomInRange(min, max) {
-            return min + Math.random() * (max - min);
-        }
-
-        function showScorePopup(x, y, text) {
-            const popup = document.createElement('div');
-            popup.className = 'score-popup';
-            popup.textContent = text;
-            popup.style.left = x + 'px';
-            popup.style.top = y + 'px';
-            document.getElementById('gameBoard').appendChild(popup);
-            setTimeout(() => popup.remove(), 1000);
-        }
-
-        function updateProgress() {
-            if (totalPairs === 0) return;
-            const percentage = (matchedPairs / totalPairs) * 100;
-            document.getElementById('progressFill').style.width = percentage + '%';
-            document.getElementById('scoreDisplay').textContent = score;
-        }
-
-        // ==================== GAME LOGIC ====================
+        // ============ START / LOAD ============
         function startGame() {
             document.getElementById('startScreen').classList.add('hidden');
-            currentLevel = 0;
-            score = 0;
-            levelStars = [0, 0, 0, 0, 0];
+            document.getElementById('hud').style.display = 'flex';
+            document.getElementById('healthWrap').style.display = 'block';
+            currentLevel = 0; score = 0; matchedPairs = 0; levelStars = [0,0,0,0,0]; playerHP = maxHP;
             loadLevel();
         }
 
-        // ---- Level data (pairs used to build questions) ----
-        function getLevelPairs() {
+        function loadLevel() {
+            gameActive = true; matchedPairs = 0;
             const level = levels[currentLevel];
             const shuffled = shuffleArray(level.pairs).slice(0, 5);
             totalPairs = shuffled.length;
-            matchedPairs = 0;
-            return { pairs: shuffled, name: level.name };
+            enemies = []; bullets = [];
+            updateHUD();
+            document.getElementById('hudLevel').textContent = 'L' + (currentLevel + 1) + ': ' + level.name.split(': ')[1];
+
+            // Spawn enemies in waves
+            let idx = 0;
+            spawnInterval = setInterval(() => {
+                if (!gameActive || idx >= totalPairs) { clearInterval(spawnInterval); return; }
+                spawnEnemy(shuffled[idx]);
+                idx++;
+            }, spawnDurations[currentLevel] || 1500);
+
+            // Start animation loop
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            gameLoop();
         }
 
-        function loadLevel() {
-            gameActive = true;
-            spawnIndex = 0;
-            const { pairs, name } = getLevelPairs();
-            document.getElementById('levelIndicator').textContent = name;
-            updateProgress();
-            startSpawning(pairs);
-            animateTargets(); // start floating loop
-        }
+        // ============ SPAWN ENEMY ============
+        function spawnEnemy(pair) {
+            const area = document.getElementById('gameArea');
+            const el = document.createElement('div');
+            el.className = 'enemy';
 
-        // ---- Spawning question targets (floating buttons) ----
-        function startSpawning(pairs) {
-            const board = document.getElementById('gameBoard');
-            targets = [];
-            board.querySelectorAll('.target-btn, .score-popup').forEach(el => el.remove());
-
-            const intervalMs = 1000; // one question every second
-            spawnTimer = setInterval(() => {
-                if (!gameActive || spawnIndex >= pairs.length) {
-                    clearInterval(spawnTimer);
-                    return;
-                }
-                spawnQuestionTarget(pairs[spawnIndex]);
-                spawnIndex++;
-            }, intervalMs);
-        }
-
-        function spawnQuestionTarget(pair) {
-            const board = document.getElementById('gameBoard');
-            const btn = document.createElement('button');
-            btn.className = 'target-btn';
-            // Style as a "question bubble" — brighter gradient
-            btn.style.background = 'linear-gradient(135deg, #FFD700, #FFA500)';
-            btn.style.color = '#333';
-            btn.textContent = pair.left;
-
-            // Random position inside the board
-            const bw = board.clientWidth - 200;
-            const bh = board.clientHeight - 120;
-            const x = Math.max(10, Math.random() * Math.max(bw - 40, 40));
-            const y = Math.max(60, Math.random() * Math.max(bh - 40, 60));
-            btn.style.left = x + 'px';
-            btn.style.top = y + 'px';
-
-            // Floating direction
-            const angle = Math.random() * Math.PI * 2;
-            const speed = randomInRange(0.15, 0.35);
-            btn._vx = Math.cos(angle) * speed;
-            btn._vy = Math.sin(angle) * speed;
-
-            // Store game data
-            btn._pairId   = pair.left;
-            btn._correct  = pair.right;
-            btn._isAnswer = false;
-            btn._isQ      = true;
-
-            btn.addEventListener('pointerdown', (e) => {
-                e.preventDefault();
-                handleQuestionClick(e, btn);
-            });
-
-            board.appendChild(btn);
-            targets.push(btn);
-
-            // Auto-remove after lifespan (missed question)
-            const lifespan = targetLifespans[currentLevel] || 3000;
-            setTimeout(() => removeTarget(btn), lifespan);
-
-            // Spawn answer buttons near the question
-            spawnAnswerButtons(pair.right, pair.left);
-        }
-
-        // ---- Spawn answer-choice buttons (4 floating targets) ----
-        function spawnAnswerButtons(correctAnswer, pairLeft) {
-            const board = document.getElementById('gameBoard');
-            const level = levels[currentLevel];
-            // Gather wrong answers from the same level's pairs
-            const allAnswers = level.pairs.filter(p => p.right !== correctAnswer);
-            const wrongAnswers = shuffleArray(allAnswers).slice(0, 3).map(p => p.right);
-            const options = shuffleArray([correctAnswer, ...wrongAnswers]);
-
-            options.forEach(answer => {
-                const btn = document.createElement('button');
-                btn.className = 'target-btn';
-                // Blue/purple for answer choices
-                btn.style.background = 'linear-gradient(135deg, #4ECDC4, #45B7D1)';
-                btn.textContent = answer;
-
-                const bw = board.clientWidth - 200;
-                const bh = board.clientHeight - 120;
-                const x = Math.max(10, Math.random() * Math.max(bw - 40, 40));
-                const y = Math.max(80, Math.random() * Math.max(bh - 40, 60));
-                btn.style.left = x + 'px';
-                btn.style.top = y + 'px';
-
-                const angle = Math.random() * Math.PI * 2;
-                const speed = randomInRange(0.15, 0.4);
-                btn._vx = Math.cos(angle) * speed;
-                btn._vy = Math.sin(angle) * speed;
-
-                btn._isAnswer   = true;
-                btn._answer     = answer;
-                btn._correctFor = pairLeft;
-
-                btn.addEventListener('pointerdown', (e) => {
-                    e.preventDefault();
-                    handleAnswerClick(e, btn);
-                });
-
-                board.appendChild(btn);
-                targets.push(btn);
-
-                const lifespan = targetLifespans[currentLevel] || 3000;
-                setTimeout(() => removeTarget(btn), lifespan);
-            });
-        }
-
-        // ---- Click handling for question targets ----
-        function handleQuestionClick(e, btn) {
-            // Questions themselves don't need click — answers appear nearby.
-            // But we keep this in case future features want to highlight the question.
-        }
-
-        // ---- Click handling for answer buttons ----
-        function handleAnswerClick(e, btn) {
-            if (!gameActive || !btn._isAnswer) return;
-            const correctFor = btn._correctFor;
-
-            const level = levels[currentLevel];
-            const pair = level.pairs.find(p => p.left === correctFor);
-            if (!pair) return;
-
-            const rect = btn.getBoundingClientRect();
-            const boardRect = document.getElementById('gameBoard').getBoundingClientRect();
-            const bx = rect.left - boardRect.left + rect.width / 2;
-            const by = rect.top - boardRect.top;
-
-            if (btn._answer === pair.right) {
-                // Correct!
-                btn.classList.add('hit-correct');
-                showScorePopup(bx, by, '+10 ✨');
-                setTimeout(() => removeTarget(btn), 600);
-                score += 10;
-                matchedPairs++;
-                updateProgress();
-                if (matchedPairs === totalPairs) {
-                    gameActive = false;
-                    clearInterval(spawnTimer);
-                    // Fade out remaining targets
-                    targets.forEach(t => { t.style.transition = 'opacity 0.3s'; t.style.opacity = '0'; });
-                    setTimeout(() => showLevelComplete(), 800);
-                }
+            // Random HP for this level
+            const hpOptions = enemyHPVals[currentLevel] || [1];
+            const maxHPVal = hpOptions[hpOptions.length - 1];
+            let currentHP = maxHPVal;
+            el.dataset.hp = currentHP;
+            el.dataset.maxHp = maxHPVal;
+            if (maxHPVal > 1) {
+                el.innerHTML = pair.left + '<div class="enemy-hp"><div class="enemy-hp-fill" style="width:100%"></div></div>';
             } else {
-                // Wrong!
-                btn.classList.add('hit-wrong');
-                showScorePopup(bx, by, '❌');
-                setTimeout(() => removeTarget(btn), 500);
+                el.innerHTML = pair.left;
+            }
+
+            // Position at top of game area
+            const gw = document.getElementById('gameArea').clientWidth - 60;
+            el.style.left = (Math.random() * Math.max(gw, 40)) + 'px';
+            el.style.top = '-60px';
+
+            const [minSpd, maxSpd] = enemySpeeds[currentLevel] || [2,3];
+            const speed = minSpd + Math.random() * (maxSpd - minSpd);
+
+            el._speed = speed;
+            el._pairLeft = pair.left;
+            el._correctAnswer = pair.right;
+
+            // Click/touch to shoot
+            el.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                if (!gameActive || !el.dataset.hp) return;
+                hitEnemy(el);
+            });
+
+            area.appendChild(el);
+            enemies.push(el);
+        }
+
+        function hitEnemy(el) {
+            let hp = parseInt(el.dataset.hp) || 0;
+            hp--;
+            el.dataset.hp = hp;
+
+            if (hp <= 0) {
+                // Destroy enemy
+                killEnemy(el);
+            } else {
+                el.dataset.hp = hp;
+                const pct = (hp / parseInt(el.dataset.maxHp)) * 100;
+                const hpFill = el.querySelector('.enemy-hp-fill');
+                if (hpFill) hpFill.style.width = pct + '%';
+
+                // Flash red
+                el.style.background = 'radial-gradient(circle at 35% 35%, #fff, #ff6b6b)';
+                setTimeout(() => { el.style.background = 'radial-gradient(circle at 35% 35%, #ff6b6b, #c0392b)'; }, 150);
+
+                // Create bullet trail effect
+                createBulletTrail(el);
             }
         }
 
-        function removeTarget(btn) {
-            const idx = targets.indexOf(btn);
-            if (idx > -1) targets.splice(idx, 1);
-            btn.remove();
+        function killEnemy(el) {
+            const rect = el.getBoundingClientRect();
+            const areaRect = document.getElementById('gameArea').getBoundingClientRect();
+            const x = rect.left - areaRect.left + rect.width / 2;
+            const y = rect.top - areaRect.top + rect.height / 2;
+
+            // Explosion
+            createExplosion(x, y);
+            removeEnemy(el);
+
+            // Check if correct answer
+            const level = levels[currentLevel];
+            const pair = level.pairs.find(p => p.left === el._pairLeft);
+            if (pair) {
+                score += 20;
+                matchedPairs++;
+                updateHUD();
+                showScorePopup(x, y - 30, '+20 💥', '#FFD700');
+
+                if (matchedPairs >= totalPairs) {
+                    gameActive = false;
+                    clearInterval(spawnInterval);
+                    setTimeout(() => showLevelComplete(), 800);
+                }
+            }
         }
 
-        // ---- Floating animation loop for all targets ----
-        function animateTargets() {
-            const board = document.getElementById('gameBoard');
-            const bw = board.clientWidth;
-            const bh = board.clientHeight;
-            targets.forEach(btn => {
-                let x = parseFloat(btn.style.left);
-                let y = parseFloat(btn.style.top);
-                let vx = btn._vx || 0.5;
-                let vy = btn._vy || 0.3;
+        function removeEnemy(el) {
+            const idx = enemies.indexOf(el);
+            if (idx > -1) enemies.splice(idx, 1);
+            el.remove();
+        }
 
-                // Bounce off edges (with padding)
-                const pad = 5;
-                if (x <= pad || x >= bw - btn.offsetWidth - pad) vx = -vx;
-                if (y <= pad + 45 || y >= bh - btn.offsetHeight - pad) vy = -vy;
+        // ============ EXPLOSION & PARTICLES ============
+        function createExplosion(cx, cy) {
+            const area = document.getElementById('gameArea');
 
-                x += vx;
-                y += vy;
+            // Main explosion
+            const exp = document.createElement('div');
+            exp.className = 'explosion';
+            exp.style.left = (cx - 30) + 'px';
+            exp.style.top = (cy - 30) + 'px';
+            area.appendChild(exp);
+            setTimeout(() => exp.remove(), 500);
 
-                // Clamp to viewport
-                x = Math.max(pad, Math.min(x, bw - btn.offsetWidth));
-                y = Math.max(pad + 45, Math.min(y, bh - btn.offsetHeight));
+            // Debris
+            const colors = ['#ff4757', '#FFD700', '#ff6b81', '#ffa502', '#ff3838'];
+            for (let i = 0; i < 10; i++) {
+                const d = document.createElement('div');
+                d.className = 'debris';
+                const angle = (Math.PI * 2 / 10) * i + Math.random() * 0.5;
+                const dist = 30 + Math.random() * 60;
+                d.style.left = cx + 'px';
+                d.style.top = cy + 'px';
+                d.style.setProperty('--dx', (Math.cos(angle) * dist) + 'px');
+                d.style.setProperty('--dy', (Math.sin(angle) * dist) + 'px');
+                d.style.setProperty('--dur', (0.5 + Math.random() * 0.4) + 's');
+                d.style.background = colors[Math.floor(Math.random() * colors.length)];
+                area.appendChild(d);
+                setTimeout(() => d.remove(), 1000);
+            }
+        }
 
-                btn.style.left = x + 'px';
-                btn.style.top  = y + 'px';
+        function showScorePopup(x, y, text, color) {
+            const area = document.getElementById('gameArea');
+            const p = document.createElement('div');
+            p.className = 'score-popup';
+            p.textContent = text;
+            p.style.color = color || '#FFD700';
+            p.style.left = x + 'px';
+            p.style.top = y + 'px';
+            area.appendChild(p);
+            setTimeout(() => p.remove(), 1000);
+        }
+
+        // ============ BULLET TRAIL ON HIT ============
+        function createBulletTrail(el) {
+            const rect = el.getBoundingClientRect();
+            const jetRect = document.getElementById('jetContainer').getBoundingClientRect();
+            const areaRect = document.getElementById('gameArea').getBoundingClientRect();
+
+            const startX = jetRect.left - areaRect.left + jetRect.width / 2;
+            const startY = jetRect.top - areaRect.top + 10;
+            const endX = rect.left - areaRect.left + rect.width / 2;
+            const endY = rect.top - areaRect.top + rect.height / 2;
+
+            // Draw bullet as small circle flying from jet to enemy
+            const b = document.createElement('div');
+            b.style.cssText = `position:absolute; width:6px; height:6px; background:#fff; border-radius:50%;
+                box-shadow: 0 0 10px #00e5ff, 0 0 20px #00e5ff; z-index:9; pointer-events:none; left:${startX}px; top:${startY}px;`;
+            document.getElementById('gameArea').appendChild(b);
+
+            const dx = (endX - startX) / 8;
+            const dy = (endY - startY) / 8;
+            let step = 0;
+            const anim = () => {
+                step++;
+                b.style.left = (startX + dx * step) + 'px';
+                b.style.top = (startY + dy * step) + 'px';
+                if (step < 8) requestAnimationFrame(anim);
+                else b.remove();
+            };
+            requestAnimationFrame(anim);
+        }
+
+        // ============ GAME LOOP ============
+        function gameLoop() {
+            const area = document.getElementById('gameArea');
+            const ah = area.clientHeight;
+
+            enemies.forEach(el => {
+                let top = parseFloat(el.style.top) || 0;
+                top += el._speed;
+                if (top > ah + 60) {
+                    // Enemy reached bottom — player takes damage
+                    takeDamage(10);
+                    removeEnemy(el);
+                    showScorePopup(parseFloat(el.style.left) + 30, ah - 30, '💥 -10 HP', '#ff4757');
+                } else {
+                    el.style.top = top + 'px';
+                }
             });
-            if (gameActive) requestAnimationFrame(animateTargets);
+
+            // Update bullets
+            bullets.forEach((b, i) => {
+                b.y -= b.speed;
+                b.el.style.top = b.y + 'px';
+                if (b.y < -20) { removeBullet(b); return; }
+            });
+
+            if (gameActive) animFrameId = requestAnimationFrame(gameLoop);
         }
 
-        // Compatibility stubs — no longer used in shooting mode
-        function selectCard() {}
-        function attemptMatch() {}
+        function removeBullet(b) {
+            const idx = bullets.indexOf(b);
+            if (idx > -1) bullets.splice(idx, 1);
+            b.el.remove();
+        }
 
-        // ==================== LEVEL COMPLETE ====================
+        // ============ PLAYER DAMAGE ============
+        function takeDamage(amount) {
+            playerHP = Math.max(0, playerHP - amount);
+            updateHUD();
+            const fill = document.getElementById('healthFill');
+            fill.style.width = (playerHP / maxHP * 100) + '%';
+            fill.classList.add('damaged');
+            setTimeout(() => fill.classList.remove('damaged'), 300);
+
+            if (playerHP <= 0) {
+                gameOver();
+            }
+        }
+
+        function gameOver() {
+            gameActive = false;
+            clearInterval(spawnInterval);
+            enemies.forEach(e => e.remove());
+            enemies = [];
+            document.getElementById('finalScoreLose').textContent = score;
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+        }
+
+        // ============ LEVEL COMPLETE ============
         function showLevelComplete() {
-            const overlay = document.getElementById('levelComplete');
-            overlay.classList.remove('hidden');
-            
-            // Calculate stars based on score for this level
+            const o = document.getElementById('levelComplete');
+            o.classList.remove('hidden');
             let stars = '⭐';
             if (score >= currentLevel * 40 + 35) stars = '⭐⭐⭐';
             else if (score >= currentLevel * 40 + 20) stars = '⭐⭐';
             levelStars[currentLevel] = stars;
-            
             document.getElementById('starsDisplay').textContent = stars;
-            
+
             if (currentLevel < 4) {
-                document.getElementById('levelCompleteTitle').textContent = '🎉 太棒了!';
-                document.getElementById('levelCompleteText').textContent = `你完成了 Level ${currentLevel + 1}!`;
+                document.getElementById('lcTitle').textContent = '🎉 太棒了!';
+                document.getElementById('lcText').textContent = `你完成了 Level ${currentLevel + 1}!`;
                 document.getElementById('nextLevelBtn').textContent = '下一关 ➡️';
             } else {
-                document.getElementById('levelCompleteTitle').textContent = '🏆 恭喜你! 🏆';
-                document.getElementById('levelCompleteText').textContent = '你完成了所有关卡!';
+                document.getElementById('lcTitle').textContent = '🏆 恭喜你! 🏆';
+                document.getElementById('lcText').textContent = '你完成了所有关卡!';
                 document.getElementById('nextLevelBtn').textContent = '查看结果 View Results';
             }
         }
 
         function nextLevel() {
             document.getElementById('levelComplete').classList.add('hidden');
-            
             if (currentLevel < 4) {
                 currentLevel++;
                 loadLevel();
@@ -705,41 +656,143 @@
             }
         }
 
-        // ==================== VICTORY SCREEN ====================
         function showVictory() {
-            const overlay = document.getElementById('victoryScreen');
-            overlay.classList.remove('hidden');
-            document.getElementById('finalScore').textContent = `总分: ${score} / 50`;
+            const o = document.getElementById('victoryScreen');
+            o.classList.remove('hidden');
+            document.getElementById('finalScore').textContent = `总分: ${score} / 100`;
             createConfetti();
         }
 
         function createConfetti() {
             const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
-            
-            for (let i = 0; i < 100; i++) {
+            for (let i = 0; i < 80; i++) {
                 setTimeout(() => {
-                    const confetti = document.createElement('div');
-                    confetti.className = 'confetti';
-                    confetti.style.left = Math.random() * 100 + 'vw';
-                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                    confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
-                    confetti.style.width = (Math.random() * 10 + 5) + 'px';
-                    confetti.style.height = confetti.style.width;
-                    document.body.appendChild(confetti);
-                    
-                    setTimeout(() => confetti.remove(), 5000);
-                }, i * 50);
+                    const c = document.createElement('div');
+                    c.className = 'confetti';
+                    c.style.left = Math.random() * 100 + 'vw';
+                    c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    c.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                    document.body.appendChild(c);
+                    setTimeout(() => c.remove(), 5000);
+                }, i * 40);
             }
         }
 
         function restartGame() {
             document.getElementById('victoryScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
             startGame();
         }
 
+        // ============ CONTROLS ============
+        const gameArea = document.getElementById('gameArea');
+        const jetContainer = document.getElementById('jetContainer');
+
+        // Mouse move controls jet position
+        document.addEventListener('mousemove', (e) => {
+            const rect = gameArea.getBoundingClientRect();
+            let x = e.clientX - rect.left;
+            x = Math.max(35, Math.min(x, rect.width - 35));
+            jetX = x;
+            jetContainer.style.left = x + 'px';
+
+            // Move crosshair
+            const ch = document.getElementById('crosshair');
+            if (ch) { ch.style.display = 'block'; ch.style.left = e.clientX + 'px'; ch.style.top = e.clientY + 'px'; }
+        });
+
+        // Touch controls jet position
+        document.addEventListener('touchmove', (e) => {
+            if (!gameActive || !e.touches.length) return;
+            const touch = e.touches[0];
+            const rect = gameArea.getBoundingClientRect();
+            let x = touch.clientX - rect.left;
+            x = Math.max(35, Math.min(x, rect.width - 35));
+            jetContainer.style.left = x + 'px';
+        }, { passive: true });
+
+        // Keyboard controls (arrow keys / WASD)
+        const keyState = {};
+        document.addEventListener('keydown', e => { keyState[e.key.toLowerCase()] = true; });
+        document.addEventListener('keyup', e => { keyState[e.key.toLowerCase()] = false; });
+        function updateKeyControls() {
+            if (!gameActive) return;
+            const speed = 8;
+            let x = jetX;
+            if (keyState['a'] || keyState['arrowleft']) x -= speed;
+            if (keyState['d'] || keyState['arrowright']) x += speed;
+            x = Math.max(35, Math.min(x, window.innerWidth - 35));
+            jetX = x;
+            jetContainer.style.left = x + 'px';
+            requestAnimationFrame(updateKeyControls);
+        }
+        updateKeyControls();
+
+        // Click to fire (auto-aim at nearest enemy)
+        gameArea.addEventListener('pointerdown', (e) => {
+            if (!gameActive) return;
+            const rect = gameArea.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            // Find clicked enemy
+            let hitEnemyEl = null;
+            let minDist = Infinity;
+            enemies.forEach(el => {
+                const er = el.getBoundingClientRect();
+                const ex = er.left + er.width / 2 - rect.left;
+                const ey = er.top + er.height / 2 - rect.top;
+                const dist = Math.hypot(clickX - ex, clickY - ey);
+                if (dist < 40 && dist < minDist) { minDist = dist; hitEnemyEl = el; }
+            });
+
+            if (hitEnemyEl) {
+                // Fire bullet from jet to enemy
+                fireBullet(jetContainer, hitEnemyEl);
+            }
+        });
+
+        function fireBullet(fromEl, toEl) {
+            const area = document.getElementById('gameArea');
+            const fRect = fromEl.getBoundingClientRect();
+            const tRect = toEl.getBoundingClientRect();
+            const aRect = area.getBoundingClientRect();
+
+            const startX = fRect.left - aRect.left + fRect.width / 2;
+            const startY = fRect.top - aRect.top;
+
+            const b = document.createElement('div');
+            b.className = 'bullet';
+            // Rotate to point toward target
+            const angle = Math.atan2(tRect.top - fRect.top, tRect.left - fRect.left) * 180 / Math.PI;
+            b.style.transform = `rotate(${angle - 90}deg)`;
+            area.appendChild(b);
+
+            bullets.push({ el: b, y: startY, speed: 12 });
+
+            // Bullet travel animation
+            const dx = (tRect.left - aRect.left + tRect.width / 2) - startX;
+            const dy = (tRect.top - aRect.top + tRect.height / 2) - startY;
+            const dist = Math.hypot(dx, dy);
+            const steps = Math.ceil(dist / b.speed);
+            let step = 0;
+
+            function moveBullet() {
+                step++;
+                if (step >= steps || !b.parentNode) { b.remove(); return; }
+                const nx = startX + (dx / steps) * step;
+                const ny = startY + (dy / steps) * step;
+                b.style.left = nx + 'px';
+                b.style.top = ny + 'px';
+                requestAnimationFrame(moveBullet);
+            }
+            requestAnimationFrame(moveBullet);
+        }
+
         // Prevent default touch behaviors
-        document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+        document.addEventListener('touchmove', e => { if (gameActive) e.preventDefault(); }, { passive: false });
         document.addEventListener('contextmenu', e => e.preventDefault());
+
     </script>
 </body>
 </html>
