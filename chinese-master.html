@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>华文达人 Chinese Master</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .game-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 48px;
+            color: #fff;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .level-indicator {
+            font-size: 28px;
+            color: #FFD700;
+            background: rgba(0,0,0,0.2);
+            padding: 10px 30px;
+            border-radius: 25px;
+            display: inline-block;
+        }
+
+        .progress-bar {
+            width: 80%;
+            max-width: 600px;
+            height: 20px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+            margin: 15px auto;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FFD700, #FFA500);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        .score-display {
+            font-size: 24px;
+            color: #fff;
+            margin-top: 10px;
+        }
+
+        .game-board {
+            display: flex;
+            justify-content: space-between;
+            width: 90%;
+            max-width: 1000px;
+            gap: 40px;
+            position: relative;
+        }
+
+        .column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 15px;
+            padding: 18px 24px;
+            font-size: 26px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: 4px solid transparent;
+            position: relative;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .card.selected {
+            border-color: #FFD700;
+            background: #FFF8DC;
+            transform: scale(1.08);
+            box-shadow: 0 0 20px rgba(255,215,0,0.6);
+        }
+
+        .card.correct {
+            border-color: #4CAF50;
+            background: #E8F5E9;
+            animation: correctPulse 0.5s ease;
+        }
+
+        .card.wrong {
+            border-color: #f44336;
+            background: #FFEBEE;
+            animation: shake 0.5s ease;
+        }
+
+        .card.matched {
+            opacity: 0.5;
+            pointer-events: none;
+            border-color: #4CAF50;
+            background: #C8E6C9;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-10px); }
+            40% { transform: translateX(10px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+        }
+
+        @keyframes correctPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 28px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #333;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4CAF50, #66BB6A);
+            color: #fff;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .modal {
+            background: #fff;
+            border-radius: 30px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+
+        .modal h2 {
+            font-size: 42px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .modal p {
+            font-size: 26px;
+            margin-bottom: 30px;
+            color: #666;
+        }
+
+        .stars {
+            font-size: 60px;
+            margin: 20px 0;
+        }
+
+        .start-screen {
+            text-align: center;
+        }
+
+        .start-screen h1 {
+            font-size: 56px;
+            color: #FFD700;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+
+        .start-screen p {
+            font-size: 28px;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+
+        .level-info {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 30px auto;
+            max-width: 600px;
+        }
+
+        .level-info p {
+            font-size: 24px;
+            color: #fff;
+            margin: 10px 0;
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: fall linear forwards;
+            z-index: 101;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        .canvas-svg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body>
+    <svg class="canvas-svg" id="svgLines"></svg>
+
+    <!-- Start Screen -->
+    <div class="overlay" id="startScreen">
+        <div class="modal start-screen">
+            <h1>🏆 华文达人 🏆</h1>
+            <p>Chinese Master Challenge!</p>
+            <div class="level-info">
+                <p>📚 Level 1: 词语解释 Vocabulary & Meaning</p>
+                <p>🔗 Level 2: 近义词 Synonyms</p>
+                <p>🔄 Level 3: 反义词 Antonyms</p>
+                <p>📖 Level 4: 成语配对 Idiom Match</p>
+                <p>✍️ Level 5: 完成句子 Fill-in-the-Blanks</p>
+            </div>
+            <p style="color: #FFD700; font-size: 22px;">挑战自己，看看你能过几关！</p>
+            <button class="btn btn-primary" onclick="startGame()">开始游戏 Start!</button>
+        </div>
+    </div>
+
+    <!-- Level Complete Screen -->
+    <div class="overlay hidden" id="levelComplete">
+        <div class="modal">
+            <h2 id="levelCompleteTitle">🎉 太棒了!</h2>
+            <p id="levelCompleteText">你完成了这一关!</p>
+            <div class="stars" id="starsDisplay">⭐⭐⭐</div>
+            <button class="btn btn-success" id="nextLevelBtn" onclick="nextLevel()">下一关 ➡️</button>
+        </div>
+    </div>
+
+    <!-- Victory Screen -->
+    <div class="overlay hidden" id="victoryScreen">
+        <div class="modal">
+            <h2>🏆 恭喜你! 🏆</h2>
+            <p>你完成了所有关卡!</p>
+            <div class="stars">🌟🌟🌟🌟🌟</div>
+            <p style="font-size: 30px; color: #FFD700;">你就是华文达人!</p>
+            <p id="finalScore" style="color: #666;"></p>
+            <button class="btn btn-primary" onclick="restartGame()">再来一次 Play Again!</button>
+        </div>
+    </div>
+
+    <!-- Game Area -->
+    <div class="game-container">
+        <div class="header">
+            <div class="title">🏆 华文达人</div>
+            <div class="level-indicator" id="levelIndicator">Level 1: 词语解释</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="score-display">得分 Score: <span id="scoreDisplay">0</span></div>
+        </div>
+
+        <div class="game-board">
+            <div class="column" id="leftColumn"></div>
+            <div class="column" id="rightColumn"></div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== GAME DATA ====================
+        const levels = [
+            {
+                name: "Level 1: 词语解释 Vocabulary",
+                pairs: [
+                    { left: "鼓励", right: "Encourage" },
+                    { left: "坚持", right: "Persist / Persevere" },
+                    { left: "忽略", right: "Ignore" },
+                    { left: "赞赏", right: "Appreciate / Admire" },
+                    { left: "疲倦", right: "Tired / Exhausted" },
+                    { left: "连忙", right: "Hurry / Immediately" },
+                    { left: "著名", right: "Famous / Renowned" }
+                ]
+            },
+            {
+                name: "Level 2: 近义词 Synonyms",
+                pairs: [
+                    { left: "赞赏", right: "称赞" },
+                    { left: "疲倦", right: "劳累" },
+                    { left: "连忙", right: "赶快" },
+                    { left: "著名", right: "有名" },
+                    { left: "美丽", right: "漂亮" },
+                    { left: "快乐", right: "高兴" },
+                    { left: "帮助", right: "协助" }
+                ]
+            },
+            {
+                name: "Level 3: 反义词 Antonyms",
+                pairs: [
+                    { left: "危险", right: "安全" },
+                    { left: "失败", right: "成功" },
+                    { left: "黑暗", right: "光明" },
+                    { left: "柔软", right: "坚硬" },
+                    { left: "吝啬", right: "慷慨" },
+                    { left: "骄傲", right: "谦虚" },
+                    { left: "复杂", right: "简单" }
+                ]
+            },
+            {
+                name: "Level 4: 成语配对 Idiom Match",
+                pairs: [
+                    { left: "守株", right: "待兔" },
+                    { left: "井底", right: "之蛙" },
+                    { left: "半途", right: "而废" },
+                    { left: "画蛇", right: "添足" },
+                    { left: "对牛", right: "弹琴" },
+                    { left: "拔苗", right: "助长" },
+                    { left: "亡羊", right: "补牢" }
+                ]
+            },
+            {
+                name: "Level 5: 完成句子 Fill-in-the-Blanks",
+                pairs: [
+                    { left: "老师___我们要好好学习。", right: "鼓励" },
+                    { left: "遇到困难，不要___，要___。", right: "放弃" },
+                    { left: "做事不能___，要坚持到底。", right: "半途而废" },
+                    { left: "他平时很___，这次却送了我一份礼物。", right: "吝啬" },
+                    { left: "这本书的内容太___了，我一看就懂。", right: "简单" },
+                    { left: "我们要做一个___的人，不能骄傲自大。", right: "谦虚" },
+                    { left: "他的画技太高超了，真是___！(成语)", right: "画龙点睛" }
+                ]
+            }
+        ];
+
+        // ==================== GAME STATE ====================
+        let currentLevel = 0;
+        let selectedCard = null;
+        let matchedPairs = 0;
+        let totalPairs = 0;
+        let score = 0;
+        let levelStars = [0, 0, 0, 0, 0];
+
+        // ==================== UTILITY FUNCTIONS ====================
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function updateProgress() {
+            const percentage = (matchedPairs / totalPairs) * 100;
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('scoreDisplay').textContent = score;
+        }
+
+        // ==================== GAME LOGIC ====================
+        function startGame() {
+            document.getElementById('startScreen').classList.add('hidden');
+            currentLevel = 0;
+            score = 0;
+            levelStars = [0, 0, 0, 0, 0];
+            loadLevel();
+        }
+
+        function loadLevel() {
+            const level = levels[currentLevel];
+            document.getElementById('levelIndicator').textContent = level.name;
+            matchedPairs = 0;
+            
+            // Pick 5 random pairs for this level
+            const shuffledPairs = shuffleArray(level.pairs).slice(0, 5);
+            totalPairs = shuffledPairs.length;
+            
+            // Shuffle left and right items independently
+            const leftItems = shuffleArray(shuffledPairs.map((p, i) => ({ text: p.left, id: i })));
+            const rightItems = shuffleArray(shuffledPairs.map((p, i) => ({ text: p.right, id: i })));
+            
+            renderBoard(leftItems, rightItems);
+            updateProgress();
+        }
+
+        function renderBoard(leftItems, rightItems) {
+            const leftCol = document.getElementById('leftColumn');
+            const rightCol = document.getElementById('rightColumn');
+            leftCol.innerHTML = '';
+            rightCol.innerHTML = '';
+            
+            leftItems.forEach(item => {
+                const card = createCard(item.text, 'left', item.id);
+                leftCol.appendChild(card);
+            });
+            
+            rightItems.forEach(item => {
+                const card = createCard(item.text, 'right', item.id);
+                rightCol.appendChild(card);
+            });
+        }
+
+        function createCard(text, side, pairId) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.textContent = text;
+            card.dataset.side = side;
+            card.dataset.pairId = pairId;
+            
+            // Pointer events for touch support
+            card.addEventListener('pointerdown', handleCardClick);
+            
+            return card;
+        }
+
+        function handleCardClick(e) {
+            e.preventDefault();
+            const card = e.currentTarget;
+            
+            if (card.classList.contains('matched')) return;
+            
+            // If clicking the same card, deselect it
+            if (selectedCard === card) {
+                card.classList.remove('selected');
+                selectedCard = null;
+                clearSvgLines();
+                return;
+            }
+            
+            // If another card is selected and this is a different side
+            if (selectedCard && selectedCard !== card) {
+                const selectedSide = selectedCard.dataset.side;
+                const clickedSide = card.dataset.side;
+                
+                if (selectedSide !== clickedSide) {
+                    // Attempt to match
+                    attemptMatch(selectedCard, card);
+                } else {
+                    // Switch selection to new card on same side
+                    selectedCard.classList.remove('selected');
+                    selectCard(card);
+                }
+            } else if (!selectedCard) {
+                selectCard(card);
+            }
+        }
+
+        function selectCard(card) {
+            clearSvgLines();
+            document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+            selectedCard = card;
+            card.classList.add('selected');
+        }
+
+        function attemptMatch(leftCard, rightCard) {
+            const leftId = leftCard.dataset.pairId;
+            const rightId = rightCard.dataset.pairId;
+            
+            // Draw connection line temporarily
+            drawLine(leftCard, rightCard);
+            
+            if (leftId === rightId) {
+                // Correct match!
+                setTimeout(() => {
+                    leftCard.classList.remove('selected');
+                    leftCard.classList.add('correct', 'matched');
+                    rightCard.classList.remove('selected');
+                    rightCard.classList.add('correct', 'matched');
+                    clearSvgLines();
+                    score += 10;
+                    matchedPairs++;
+                    selectedCard = null;
+                    updateProgress();
+                    
+                    if (matchedPairs === totalPairs) {
+                        setTimeout(() => showLevelComplete(), 500);
+                    }
+                }, 400);
+            } else {
+                // Wrong match
+                setTimeout(() => {
+                    leftCard.classList.remove('selected');
+                    leftCard.classList.add('wrong');
+                    rightCard.classList.add('wrong');
+                    setTimeout(() => {
+                        leftCard.classList.remove('wrong');
+                        rightCard.classList.remove('wrong');
+                    }, 600);
+                    clearSvgLines();
+                    selectedCard = null;
+                }, 400);
+            }
+        }
+
+        // ==================== SVG LINE DRAWING ====================
+        function drawLine(card1, card2) {
+            const svg = document.getElementById('svgLines');
+            const rect1 = card1.getBoundingClientRect();
+            const rect2 = card2.getBoundingClientRect();
+            
+            const x1 = rect1.right;
+            const y1 = rect1.top + rect1.height / 2;
+            const x2 = rect2.left;
+            const y2 = rect2.top + rect2.height / 2;
+            
+            // Create a curved line
+            const midX = (x1 + x2) / 2;
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', `M ${x1} ${y1} Q ${midX} ${(y1 + y2) / 2} ${x2} ${y2}`);
+            path.setAttribute('stroke', '#FFD700');
+            path.setAttribute('stroke-width', '4');
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke-dasharray', '10,5');
+            path.style.animation = 'correctPulse 0.3s ease';
+            
+            // Clear previous lines
+            svg.innerHTML = '';
+            svg.appendChild(path);
+        }
+
+        function clearSvgLines() {
+            document.getElementById('svgLines').innerHTML = '';
+        }
+
+        // ==================== LEVEL COMPLETE ====================
+        function showLevelComplete() {
+            const overlay = document.getElementById('levelComplete');
+            overlay.classList.remove('hidden');
+            
+            // Calculate stars based on score for this level
+            let stars = '⭐';
+            if (score >= currentLevel * 40 + 35) stars = '⭐⭐⭐';
+            else if (score >= currentLevel * 40 + 20) stars = '⭐⭐';
+            levelStars[currentLevel] = stars;
+            
+            document.getElementById('starsDisplay').textContent = stars;
+            
+            if (currentLevel < 4) {
+                document.getElementById('levelCompleteTitle').textContent = '🎉 太棒了!';
+                document.getElementById('levelCompleteText').textContent = `你完成了 Level ${currentLevel + 1}!`;
+                document.getElementById('nextLevelBtn').textContent = '下一关 ➡️';
+            } else {
+                document.getElementById('levelCompleteTitle').textContent = '🏆 恭喜你! 🏆';
+                document.getElementById('levelCompleteText').textContent = '你完成了所有关卡!';
+                document.getElementById('nextLevelBtn').textContent = '查看结果 View Results';
+            }
+        }
+
+        function nextLevel() {
+            document.getElementById('levelComplete').classList.add('hidden');
+            
+            if (currentLevel < 4) {
+                currentLevel++;
+                loadLevel();
+            } else {
+                showVictory();
+            }
+        }
+
+        // ==================== VICTORY SCREEN ====================
+        function showVictory() {
+            const overlay = document.getElementById('victoryScreen');
+            overlay.classList.remove('hidden');
+            document.getElementById('finalScore').textContent = `总分: ${score} / 50`;
+            createConfetti();
+        }
+
+        function createConfetti() {
+            const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
+            
+            for (let i = 0; i < 100; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                    confetti.style.width = (Math.random() * 10 + 5) + 'px';
+                    confetti.style.height = confetti.style.width;
+                    document.body.appendChild(confetti);
+                    
+                    setTimeout(() => confetti.remove(), 5000);
+                }, i * 50);
+            }
+        }
+
+        function restartGame() {
+            document.getElementById('victoryScreen').classList.add('hidden');
+            startGame();
+        }
+
+        // Prevent default touch behaviors
+        document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+        document.addEventListener('contextmenu', e => e.preventDefault());
+    </script>
+</body>
+</html>
