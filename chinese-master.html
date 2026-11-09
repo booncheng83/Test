@@ -79,67 +79,79 @@
         }
 
         .game-board {
-            display: flex;
-            justify-content: space-between;
-            width: 90%;
-            max-width: 1000px;
-            gap: 40px;
+            width: 100%;
+            height: 100%;
             position: relative;
+            overflow: hidden;
         }
 
-        .column {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .card {
-            background: #fff;
-            border-radius: 15px;
-            padding: 18px 24px;
-            font-size: 26px;
-            text-align: center;
+        /* Shooting targets */
+        .target-btn {
+            position: absolute;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: 3px solid rgba(255,255,255,0.3);
+            color: #fff;
+            font-size: 22px;
+            font-weight: bold;
+            padding: 14px 28px;
+            border-radius: 50px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            border: 4px solid transparent;
-            position: relative;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            font-family: inherit;
+            z-index: 5;
         }
 
-        .card:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-        }
-
-        .card.selected {
-            border-color: #FFD700;
-            background: #FFF8DC;
+        .target-btn:hover {
             transform: scale(1.08);
-            box-shadow: 0 0 20px rgba(255,215,0,0.6);
+            box-shadow: 0 6px 25px rgba(0,0,0,0.4);
         }
 
-        .card.correct {
-            border-color: #4CAF50;
-            background: #E8F5E9;
-            animation: correctPulse 0.5s ease;
+        .target-btn:active {
+            transform: scale(0.95);
         }
 
-        .card.wrong {
-            border-color: #f44336;
-            background: #FFEBEE;
-            animation: shake 0.5s ease;
+        /* Correct shoot */
+        .target-btn.hit-correct {
+            animation: shootCorrect 0.6s ease forwards;
         }
 
-        .card.matched {
-            opacity: 0.5;
+        /* Wrong shoot */
+        .target-btn.hit-wrong {
+            animation: shootWrong 0.5s ease forwards;
+        }
+
+        @keyframes shootCorrect {
+            0% { transform: scale(1); opacity: 1; }
+            30% { transform: scale(1.4); background: linear-gradient(135deg, #4CAF50, #66BB6A); }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        @keyframes shootWrong {
+            0% { transform: translateX(0); }
+            20% { transform: translateX(-8px) rotate(-3deg); background: linear-gradient(135deg, #f44336, #e57373); }
+            40% { transform: translateX(8px) rotate(3deg); }
+            60% { transform: translateX(-5px) rotate(-2deg); }
+            80% { transform: translateX(5px) rotate(1deg); background: linear-gradient(135deg, #667eea, #764ba2); }
+            100% { transform: translateX(0) rotate(0); opacity: 1; }
+        }
+
+        /* Score popup */
+        .score-popup {
+            position: absolute;
+            font-size: 32px;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
             pointer-events: none;
-            border-color: #4CAF50;
-            background: #C8E6C9;
+            z-index: 10;
+            animation: floatUp 1s ease forwards;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
         }
 
         @keyframes shake {
@@ -272,19 +284,10 @@
             }
         }
 
-        .canvas-svg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 50;
-        }
     </style>
 </head>
 <body>
-    <svg class="canvas-svg" id="svgLines"></svg>
+    <!-- Shooting area is the game-board div -->
 
     <!-- Start Screen -->
     <div class="overlay" id="startScreen">
@@ -336,9 +339,8 @@
             <div class="score-display">得分 Score: <span id="scoreDisplay">0</span></div>
         </div>
 
-        <div class="game-board">
-            <div class="column" id="leftColumn"></div>
-            <div class="column" id="rightColumn"></div>
+        <div class="game-board" id="gameBoard">
+            <!-- Shooting targets appear here -->
         </div>
     </div>
 
@@ -409,11 +411,16 @@
 
         // ==================== GAME STATE ====================
         let currentLevel = 0;
-        let selectedCard = null;
         let matchedPairs = 0;
         let totalPairs = 0;
         let score = 0;
         let levelStars = [0, 0, 0, 0, 0];
+        let targets = [];         // active target buttons
+        let spawnIndex = 0;       // which pair to present next
+        let gameActive = false;
+
+        // Target lifespan per level (ms) — decreases each level for difficulty
+        const targetLifespans = [8000, 6500, 5200, 4200, 3500];
 
         // ==================== UTILITY FUNCTIONS ====================
         function shuffleArray(array) {
@@ -425,7 +432,22 @@
             return shuffled;
         }
 
+        function randomInRange(min, max) {
+            return min + Math.random() * (max - min);
+        }
+
+        function showScorePopup(x, y, text) {
+            const popup = document.createElement('div');
+            popup.className = 'score-popup';
+            popup.textContent = text;
+            popup.style.left = x + 'px';
+            popup.style.top = y + 'px';
+            document.getElementById('gameBoard').appendChild(popup);
+            setTimeout(() => popup.remove(), 1000);
+        }
+
         function updateProgress() {
+            if (totalPairs === 0) return;
             const percentage = (matchedPairs / totalPairs) * 100;
             document.getElementById('progressFill').style.width = percentage + '%';
             document.getElementById('scoreDisplay').textContent = score;
@@ -440,161 +462,213 @@
             loadLevel();
         }
 
-        function loadLevel() {
+        // ---- Level data (pairs used to build questions) ----
+        function getLevelPairs() {
             const level = levels[currentLevel];
-            document.getElementById('levelIndicator').textContent = level.name;
+            const shuffled = shuffleArray(level.pairs).slice(0, 5);
+            totalPairs = shuffled.length;
             matchedPairs = 0;
-            
-            // Pick 5 random pairs for this level
-            const shuffledPairs = shuffleArray(level.pairs).slice(0, 5);
-            totalPairs = shuffledPairs.length;
-            
-            // Shuffle left and right items independently
-            const leftItems = shuffleArray(shuffledPairs.map((p, i) => ({ text: p.left, id: i })));
-            const rightItems = shuffleArray(shuffledPairs.map((p, i) => ({ text: p.right, id: i })));
-            
-            renderBoard(leftItems, rightItems);
+            return { pairs: shuffled, name: level.name };
+        }
+
+        function loadLevel() {
+            gameActive = true;
+            spawnIndex = 0;
+            const { pairs, name } = getLevelPairs();
+            document.getElementById('levelIndicator').textContent = name;
             updateProgress();
+            startSpawning(pairs);
+            animateTargets(); // start floating loop
         }
 
-        function renderBoard(leftItems, rightItems) {
-            const leftCol = document.getElementById('leftColumn');
-            const rightCol = document.getElementById('rightColumn');
-            leftCol.innerHTML = '';
-            rightCol.innerHTML = '';
-            
-            leftItems.forEach(item => {
-                const card = createCard(item.text, 'left', item.id);
-                leftCol.appendChild(card);
-            });
-            
-            rightItems.forEach(item => {
-                const card = createCard(item.text, 'right', item.id);
-                rightCol.appendChild(card);
-            });
-        }
+        // ---- Spawning question targets (floating buttons) ----
+        function startSpawning(pairs) {
+            const board = document.getElementById('gameBoard');
+            targets = [];
+            board.querySelectorAll('.target-btn, .score-popup').forEach(el => el.remove());
 
-        function createCard(text, side, pairId) {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.textContent = text;
-            card.dataset.side = side;
-            card.dataset.pairId = pairId;
-            
-            // Pointer events for touch support
-            card.addEventListener('pointerdown', handleCardClick);
-            
-            return card;
-        }
-
-        function handleCardClick(e) {
-            e.preventDefault();
-            const card = e.currentTarget;
-            
-            if (card.classList.contains('matched')) return;
-            
-            // If clicking the same card, deselect it
-            if (selectedCard === card) {
-                card.classList.remove('selected');
-                selectedCard = null;
-                clearSvgLines();
-                return;
-            }
-            
-            // If another card is selected and this is a different side
-            if (selectedCard && selectedCard !== card) {
-                const selectedSide = selectedCard.dataset.side;
-                const clickedSide = card.dataset.side;
-                
-                if (selectedSide !== clickedSide) {
-                    // Attempt to match
-                    attemptMatch(selectedCard, card);
-                } else {
-                    // Switch selection to new card on same side
-                    selectedCard.classList.remove('selected');
-                    selectCard(card);
+            const intervalMs = 1000; // one question every second
+            spawnTimer = setInterval(() => {
+                if (!gameActive || spawnIndex >= pairs.length) {
+                    clearInterval(spawnTimer);
+                    return;
                 }
-            } else if (!selectedCard) {
-                selectCard(card);
-            }
+                spawnQuestionTarget(pairs[spawnIndex]);
+                spawnIndex++;
+            }, intervalMs);
         }
 
-        function selectCard(card) {
-            clearSvgLines();
-            document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
-            selectedCard = card;
-            card.classList.add('selected');
+        function spawnQuestionTarget(pair) {
+            const board = document.getElementById('gameBoard');
+            const btn = document.createElement('button');
+            btn.className = 'target-btn';
+            // Style as a "question bubble" — brighter gradient
+            btn.style.background = 'linear-gradient(135deg, #FFD700, #FFA500)';
+            btn.style.color = '#333';
+            btn.textContent = pair.left;
+
+            // Random position inside the board
+            const bw = board.clientWidth - 200;
+            const bh = board.clientHeight - 120;
+            const x = Math.max(10, Math.random() * Math.max(bw - 40, 40));
+            const y = Math.max(60, Math.random() * Math.max(bh - 40, 60));
+            btn.style.left = x + 'px';
+            btn.style.top = y + 'px';
+
+            // Floating direction
+            const angle = Math.random() * Math.PI * 2;
+            const speed = randomInRange(0.15, 0.35);
+            btn._vx = Math.cos(angle) * speed;
+            btn._vy = Math.sin(angle) * speed;
+
+            // Store game data
+            btn._pairId   = pair.left;
+            btn._correct  = pair.right;
+            btn._isAnswer = false;
+            btn._isQ      = true;
+
+            btn.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                handleQuestionClick(e, btn);
+            });
+
+            board.appendChild(btn);
+            targets.push(btn);
+
+            // Auto-remove after lifespan (missed question)
+            const lifespan = targetLifespans[currentLevel] || 3000;
+            setTimeout(() => removeTarget(btn), lifespan);
+
+            // Spawn answer buttons near the question
+            spawnAnswerButtons(pair.right, pair.left);
         }
 
-        function attemptMatch(leftCard, rightCard) {
-            const leftId = leftCard.dataset.pairId;
-            const rightId = rightCard.dataset.pairId;
-            
-            // Draw connection line temporarily
-            drawLine(leftCard, rightCard);
-            
-            if (leftId === rightId) {
-                // Correct match!
-                setTimeout(() => {
-                    leftCard.classList.remove('selected');
-                    leftCard.classList.add('correct', 'matched');
-                    rightCard.classList.remove('selected');
-                    rightCard.classList.add('correct', 'matched');
-                    clearSvgLines();
-                    score += 10;
-                    matchedPairs++;
-                    selectedCard = null;
-                    updateProgress();
-                    
-                    if (matchedPairs === totalPairs) {
-                        setTimeout(() => showLevelComplete(), 500);
-                    }
-                }, 400);
+        // ---- Spawn answer-choice buttons (4 floating targets) ----
+        function spawnAnswerButtons(correctAnswer, pairLeft) {
+            const board = document.getElementById('gameBoard');
+            const level = levels[currentLevel];
+            // Gather wrong answers from the same level's pairs
+            const allAnswers = level.pairs.filter(p => p.right !== correctAnswer);
+            const wrongAnswers = shuffleArray(allAnswers).slice(0, 3).map(p => p.right);
+            const options = shuffleArray([correctAnswer, ...wrongAnswers]);
+
+            options.forEach(answer => {
+                const btn = document.createElement('button');
+                btn.className = 'target-btn';
+                // Blue/purple for answer choices
+                btn.style.background = 'linear-gradient(135deg, #4ECDC4, #45B7D1)';
+                btn.textContent = answer;
+
+                const bw = board.clientWidth - 200;
+                const bh = board.clientHeight - 120;
+                const x = Math.max(10, Math.random() * Math.max(bw - 40, 40));
+                const y = Math.max(80, Math.random() * Math.max(bh - 40, 60));
+                btn.style.left = x + 'px';
+                btn.style.top = y + 'px';
+
+                const angle = Math.random() * Math.PI * 2;
+                const speed = randomInRange(0.15, 0.4);
+                btn._vx = Math.cos(angle) * speed;
+                btn._vy = Math.sin(angle) * speed;
+
+                btn._isAnswer   = true;
+                btn._answer     = answer;
+                btn._correctFor = pairLeft;
+
+                btn.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    handleAnswerClick(e, btn);
+                });
+
+                board.appendChild(btn);
+                targets.push(btn);
+
+                const lifespan = targetLifespans[currentLevel] || 3000;
+                setTimeout(() => removeTarget(btn), lifespan);
+            });
+        }
+
+        // ---- Click handling for question targets ----
+        function handleQuestionClick(e, btn) {
+            // Questions themselves don't need click — answers appear nearby.
+            // But we keep this in case future features want to highlight the question.
+        }
+
+        // ---- Click handling for answer buttons ----
+        function handleAnswerClick(e, btn) {
+            if (!gameActive || !btn._isAnswer) return;
+            const correctFor = btn._correctFor;
+
+            const level = levels[currentLevel];
+            const pair = level.pairs.find(p => p.left === correctFor);
+            if (!pair) return;
+
+            const rect = btn.getBoundingClientRect();
+            const boardRect = document.getElementById('gameBoard').getBoundingClientRect();
+            const bx = rect.left - boardRect.left + rect.width / 2;
+            const by = rect.top - boardRect.top;
+
+            if (btn._answer === pair.right) {
+                // Correct!
+                btn.classList.add('hit-correct');
+                showScorePopup(bx, by, '+10 ✨');
+                setTimeout(() => removeTarget(btn), 600);
+                score += 10;
+                matchedPairs++;
+                updateProgress();
+                if (matchedPairs === totalPairs) {
+                    gameActive = false;
+                    clearInterval(spawnTimer);
+                    // Fade out remaining targets
+                    targets.forEach(t => { t.style.transition = 'opacity 0.3s'; t.style.opacity = '0'; });
+                    setTimeout(() => showLevelComplete(), 800);
+                }
             } else {
-                // Wrong match
-                setTimeout(() => {
-                    leftCard.classList.remove('selected');
-                    leftCard.classList.add('wrong');
-                    rightCard.classList.add('wrong');
-                    setTimeout(() => {
-                        leftCard.classList.remove('wrong');
-                        rightCard.classList.remove('wrong');
-                    }, 600);
-                    clearSvgLines();
-                    selectedCard = null;
-                }, 400);
+                // Wrong!
+                btn.classList.add('hit-wrong');
+                showScorePopup(bx, by, '❌');
+                setTimeout(() => removeTarget(btn), 500);
             }
         }
 
-        // ==================== SVG LINE DRAWING ====================
-        function drawLine(card1, card2) {
-            const svg = document.getElementById('svgLines');
-            const rect1 = card1.getBoundingClientRect();
-            const rect2 = card2.getBoundingClientRect();
-            
-            const x1 = rect1.right;
-            const y1 = rect1.top + rect1.height / 2;
-            const x2 = rect2.left;
-            const y2 = rect2.top + rect2.height / 2;
-            
-            // Create a curved line
-            const midX = (x1 + x2) / 2;
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            path.setAttribute('d', `M ${x1} ${y1} Q ${midX} ${(y1 + y2) / 2} ${x2} ${y2}`);
-            path.setAttribute('stroke', '#FFD700');
-            path.setAttribute('stroke-width', '4');
-            path.setAttribute('fill', 'none');
-            path.setAttribute('stroke-dasharray', '10,5');
-            path.style.animation = 'correctPulse 0.3s ease';
-            
-            // Clear previous lines
-            svg.innerHTML = '';
-            svg.appendChild(path);
+        function removeTarget(btn) {
+            const idx = targets.indexOf(btn);
+            if (idx > -1) targets.splice(idx, 1);
+            btn.remove();
         }
 
-        function clearSvgLines() {
-            document.getElementById('svgLines').innerHTML = '';
+        // ---- Floating animation loop for all targets ----
+        function animateTargets() {
+            const board = document.getElementById('gameBoard');
+            const bw = board.clientWidth;
+            const bh = board.clientHeight;
+            targets.forEach(btn => {
+                let x = parseFloat(btn.style.left);
+                let y = parseFloat(btn.style.top);
+                let vx = btn._vx || 0.5;
+                let vy = btn._vy || 0.3;
+
+                // Bounce off edges (with padding)
+                const pad = 5;
+                if (x <= pad || x >= bw - btn.offsetWidth - pad) vx = -vx;
+                if (y <= pad + 45 || y >= bh - btn.offsetHeight - pad) vy = -vy;
+
+                x += vx;
+                y += vy;
+
+                // Clamp to viewport
+                x = Math.max(pad, Math.min(x, bw - btn.offsetWidth));
+                y = Math.max(pad + 45, Math.min(y, bh - btn.offsetHeight));
+
+                btn.style.left = x + 'px';
+                btn.style.top  = y + 'px';
+            });
+            if (gameActive) requestAnimationFrame(animateTargets);
         }
+
+        // Compatibility stubs — no longer used in shooting mode
+        function selectCard() {}
+        function attemptMatch() {}
 
         // ==================== LEVEL COMPLETE ====================
         function showLevelComplete() {
